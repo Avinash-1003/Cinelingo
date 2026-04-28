@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 import { userAPI } from '../services/api';
 
 // Rotating Korean phrases shown on the left panel
@@ -14,6 +15,7 @@ const PHRASES = [
 
 export default function Login() {
   const { login, user }  = useAuth();
+  const { theme, toggleTheme, isDark } = useTheme();
   const navigate          = useNavigate();
 
   const [tab, setTab]           = useState('login');   // 'login' | 'register'
@@ -81,7 +83,8 @@ export default function Login() {
         navigate('/');
       }
     } catch (err) {
-      const msg = err.response?.data?.message || err.response?.data || err.message;
+      const data = err.response?.data;
+      const msg = data?.error || data?.message || err.message;
       setError(typeof msg === 'string' ? msg : 'Something went wrong. Please try again.');
     } finally {
       setLoading(false);
@@ -101,19 +104,20 @@ export default function Login() {
       minHeight: '100vh',
       display: 'grid',
       gridTemplateColumns: '1fr 1fr',
-      background: '#08081a',
+      background: isDark ? '#08081a' : '#f5f5f7',
       fontFamily: "'DM Sans', system-ui, sans-serif",
-      color: '#fff',
+      color: isDark ? '#fff' : '#1a1a2e',
+      transition: 'background 0.4s ease, color 0.4s ease',
     }}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Syne:wght@700;800;900&family=DM+Sans:wght@400;500;600&display=swap');
         @keyframes fadeUp   { from{opacity:0;transform:translateY(16px)} to{opacity:1;transform:translateY(0)} }
         @keyframes glow     { 0%,100%{box-shadow:0 0 24px rgba(233,69,96,0.25)} 50%{box-shadow:0 0 48px rgba(233,69,96,0.5)} }
         @keyframes float    { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-8px)} }
-        input:-webkit-autofill { -webkit-box-shadow:0 0 0 40px #13132a inset!important; -webkit-text-fill-color:#fff!important; }
-        .auth-input { width:100%; padding:13px 16px; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); border-radius:12px; color:#fff; font-size:15px; outline:none; font-family:inherit; box-sizing:border-box; transition:border-color .2s; }
+        input:-webkit-autofill { -webkit-box-shadow:0 0 0 40px ${isDark ? '#13132a' : '#f5f5f7'} inset!important; -webkit-text-fill-color:${isDark ? '#fff' : '#1a1a2e'}!important; }
+        .auth-input { width:100%; padding:13px 16px; background:${isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)'}; border:1px solid ${isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}; border-radius:12px; color:${isDark ? '#fff' : '#1a1a2e'}; font-size:15px; outline:none; font-family:inherit; box-sizing:border-box; transition:border-color .2s, background .4s; }
         .auth-input:focus { border-color:#e94560; }
-        .auth-input::placeholder { color:#444; }
+        .auth-input::placeholder { color:${isDark ? '#444' : '#aaa'}; }
         .auth-btn { width:100%; padding:14px; border:none; border-radius:12px; color:#fff; font-size:16px; font-weight:800; cursor:pointer; font-family:inherit; transition:all .22s; }
         .auth-btn:hover:not(:disabled) { transform:translateY(-2px); box-shadow:0 8px 36px rgba(233,69,96,0.45); }
         .auth-btn:disabled { opacity:0.6; cursor:not-allowed; }
@@ -126,11 +130,12 @@ export default function Login() {
 
       {/* ── LEFT PANEL — branding + rotating phrase ─────────────────────────── */}
       <div className="login-left" style={{
-        background: 'linear-gradient(160deg,#0d0d22,#1a0d1a)',
-        borderRight: '1px solid rgba(255,255,255,0.06)',
+        background: isDark ? 'linear-gradient(160deg,#0d0d22,#1a0d1a)' : 'linear-gradient(160deg,#eae8ef,#f0edf3)',
+        borderRight: `1px solid ${isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)'}`,
         display: 'flex', flexDirection: 'column',
         justifyContent: 'center', alignItems: 'center',
         padding: '48px', position: 'relative', overflow: 'hidden',
+        transition: 'background 0.4s ease',
       }}>
         {/* Ambient glow blobs */}
         <div style={{ position:'absolute', top:'-60px', left:'-60px', width:'300px', height:'300px', borderRadius:'50%', background:'rgba(233,69,96,0.06)', filter:'blur(60px)' }}/>
@@ -140,19 +145,20 @@ export default function Login() {
         <div style={{ fontSize:'32px', fontWeight:'900', color:'#e94560', fontFamily:"'Syne',sans-serif", marginBottom:'8px', animation:'glow 3s ease infinite' }}>
           🎬 CineLingo
         </div>
-        <div style={{ fontSize:'13px', color:'#555', marginBottom:'56px' }}>
+        <div style={{ fontSize:'13px', color: isDark ? '#555' : '#888', marginBottom:'56px' }}>
           Learn Korean through K-Dramas
         </div>
 
         {/* Rotating Korean phrase card */}
         <div style={{
-          background: 'rgba(255,255,255,0.03)',
-          border: '1px solid rgba(233,69,96,0.2)',
+          background: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(255,255,255,0.7)',
+          border: `1px solid ${isDark ? 'rgba(233,69,96,0.2)' : 'rgba(233,69,96,0.15)'}`,
           borderRadius: '24px', padding: '36px 32px',
           textAlign: 'center', width: '100%', maxWidth: '340px',
           opacity: phraseVisible ? 1 : 0,
           transform: phraseVisible ? 'translateY(0)' : 'translateY(8px)',
-          transition: 'opacity 0.4s ease, transform 0.4s ease',
+          transition: 'opacity 0.4s ease, transform 0.4s ease, background 0.4s ease',
+          boxShadow: isDark ? 'none' : '0 4px 20px rgba(0,0,0,0.05)',
         }}>
           <div style={{ fontSize:'11px', color:'#e94560', fontWeight:'700', letterSpacing:'2px', marginBottom:'16px' }}>
             PHRASE OF THE MOMENT
@@ -177,7 +183,7 @@ export default function Login() {
             ['🏆', 'Global leaderboard'],
           ].map(([icon, text]) => (
             <div key={text} style={{ display: 'flex', alignItems: 'center', gap: '12px',
-              fontSize: '13px', color: '#555' }}>
+              fontSize: '13px', color: isDark ? '#555' : '#888' }}>
               <span style={{ fontSize: '18px' }}>{icon}</span>
               <span>{text}</span>
             </div>
@@ -194,6 +200,20 @@ export default function Login() {
         <div style={{ width: '100%', maxWidth: '400px' }}>
 
           {/* Header */}
+          {/* Theme toggle */}
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '14px' }}>
+            <button onClick={toggleTheme} style={{
+              width: '36px', height: '36px', borderRadius: '10px',
+              background: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)',
+              border: `1px solid ${isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)'}`,
+              cursor: 'pointer', fontSize: '16px', display: 'flex',
+              alignItems: 'center', justifyContent: 'center',
+              transition: 'all 0.3s',
+            }}>
+              {isDark ? '☀️' : '🌙'}
+            </button>
+          </div>
+
           <div style={{ marginBottom: '32px' }}>
             <div style={{ fontSize: '11px', color: '#e94560', fontWeight: '700', letterSpacing: '2px', marginBottom: '8px' }}>
               {tab === 'login' ? 'WELCOME BACK' : 'CREATE ACCOUNT'}
@@ -201,7 +221,7 @@ export default function Login() {
             <h1 style={{ fontSize: '30px', fontWeight: '900', fontFamily: "'Syne',sans-serif", margin: '0 0 6px', letterSpacing: '-0.5px' }}>
               {tab === 'login' ? '다시 만나요! 👋' : '시작해봐요! 🚀'}
             </h1>
-            <p style={{ fontSize: '13px', color: '#555', margin: 0 }}>
+            <p style={{ fontSize: '13px', color: isDark ? '#555' : '#888', margin: 0 }}>
               {tab === 'login'
                 ? 'Sign in to continue your Korean journey.'
                 : 'Join thousands learning Korean through drama.'}
@@ -210,8 +230,8 @@ export default function Login() {
 
           {/* Tab switcher */}
           <div style={{ display: 'flex', gap: '8px', marginBottom: '28px',
-            background: 'rgba(255,255,255,0.03)',
-            border: '1px solid rgba(255,255,255,0.07)',
+            background: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.04)',
+            border: `1px solid ${isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.06)'}`,
             borderRadius: '14px', padding: '6px' }}>
             {[['login', '🔑 Sign In'], ['register', '✨ Register']].map(([t, label]) => (
               <button key={t} className="tab-btn"
@@ -231,7 +251,7 @@ export default function Login() {
 
             {/* Username */}
             <div>
-              <label style={{ fontSize: '12px', color: '#555', fontWeight: '600', display: 'block', marginBottom: '6px' }}>
+              <label style={{ fontSize: '12px', color: isDark ? '#555' : '#888', fontWeight: '600', display: 'block', marginBottom: '6px' }}>
                 Username
               </label>
               <input
@@ -328,8 +348,8 @@ export default function Login() {
 
           {/* Divider */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', margin: '20px 0' }}>
-            <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.07)' }}/>
-            <span style={{ fontSize: '12px', color: '#333' }}>or</span>
+            <div style={{ flex: 1, height: '1px', background: isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.08)' }}/>
+            <span style={{ fontSize: '12px', color: isDark ? '#333' : '#aaa' }}>or</span>
             <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.07)' }}/>
           </div>
 
@@ -338,15 +358,15 @@ export default function Login() {
             onClick={continueAsGuest}
             style={{
               width: '100%', padding: '13px',
-              background: 'rgba(255,255,255,0.03)',
-              border: '1px solid rgba(255,255,255,0.1)',
-              borderRadius: '12px', color: '#888',
+              background: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.04)',
+              border: `1px solid ${isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)'}`,
+              borderRadius: '12px', color: isDark ? '#888' : '#666',
               fontSize: '14px', fontWeight: '700',
               cursor: 'pointer', fontFamily: 'inherit',
               transition: 'all .2s',
             }}
-            onMouseOver={e => e.currentTarget.style.background = 'rgba(255,255,255,0.07)'}
-            onMouseOut={e => e.currentTarget.style.background = 'rgba(255,255,255,0.03)'}
+            onMouseOver={e => e.currentTarget.style.background = isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.06)'}
+            onMouseOut={e => e.currentTarget.style.background = isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.04)'}
           >
             👤 Continue as Guest
           </button>
@@ -354,16 +374,16 @@ export default function Login() {
           {/* Backend offline note */}
           <div style={{
             marginTop: '20px', padding: '12px 16px',
-            background: 'rgba(248,211,71,0.05)',
-            border: '1px solid rgba(248,211,71,0.15)',
-            borderRadius: '10px', fontSize: '12px', color: '#555', lineHeight: 1.6,
+            background: isDark ? 'rgba(248,211,71,0.05)' : 'rgba(248,211,71,0.08)',
+            border: `1px solid ${isDark ? 'rgba(248,211,71,0.15)' : 'rgba(248,211,71,0.25)'}`,
+            borderRadius: '10px', fontSize: '12px', color: isDark ? '#555' : '#888', lineHeight: 1.6,
           }}>
             💡 <strong style={{ color: '#f8d347' }}>Backend offline?</strong> Use "Continue as Guest" to explore the app.
             Your progress won't be saved to the server, but all features work locally.
           </div>
 
           {/* Footer */}
-          <div style={{ textAlign: 'center', marginTop: '28px', fontSize: '11px', color: '#333' }}>
+          <div style={{ textAlign: 'center', marginTop: '28px', fontSize: '11px', color: isDark ? '#333' : '#bbb' }}>
             By signing up you agree to our terms of service.
           </div>
         </div>

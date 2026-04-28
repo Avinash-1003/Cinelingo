@@ -1,249 +1,621 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
+import Navbar from '../components/Navbar';
 
 const API = 'http://localhost:8081';
 const tok = () => localStorage.getItem('cinelingo_token') || '';
 const hdr = () => ({ 'Content-Type': 'application/json', Authorization: `Bearer ${tok()}` });
 
-// ── Mock data shown when backend is offline ───────────────────────────────────
-const MOCK = [
-  { userId:'m1', username:'SeoJun_Master',   totalScore:12450, gameMode:'thriller', level:5, accuracyRate:0.94 },
-  { userId:'m2', username:'KoreanQueen',      totalScore:10800, gameMode:'story',    level:4, accuracyRate:0.88 },
-  { userId:'m3', username:'DragonLearner',    totalScore:9600,  gameMode:'survival', level:5, accuracyRate:0.82 },
-  { userId:'m4', username:'HangeulHero',      totalScore:8750,  gameMode:'thriller', level:4, accuracyRate:0.79 },
-  { userId:'m5', username:'KdramaFan99',      totalScore:7300,  gameMode:'story',    level:3, accuracyRate:0.91 },
-  { userId:'m6', username:'SeoulSurvivor',    totalScore:6200,  gameMode:'survival', level:3, accuracyRate:0.75 },
-  { userId:'m7', username:'BTS_Learner',      totalScore:5500,  gameMode:'story',    level:2, accuracyRate:0.83 },
-  { userId:'m8', username:'PyeoncheonPark',   totalScore:4800,  gameMode:'thriller', level:2, accuracyRate:0.71 },
-  { userId:'m9', username:'GangseoGamer',     totalScore:3900,  gameMode:'story',    level:2, accuracyRate:0.68 },
-  { userId:'m10',username:'NewLearner01',     totalScore:2100,  gameMode:'story',    level:1, accuracyRate:0.60 },
+const speakKorean = (text) => {
+  window.speechSynthesis.cancel();
+  const u = new SpeechSynthesisUtterance(text);
+  u.lang = 'ko-KR'; u.rate = 0.85; u.pitch = 1.1;
+  window.speechSynthesis.speak(u);
+};
+
+// ─── Drama Learning Path ─────────────────────────────────────────
+const DRAMA_PATH = [
+  {
+    id: 'arc1', title: 'Arrive & Survive', emoji: '✈️', color: '#4ade80', unlockAt: 0,
+    desc: 'Your first day in Seoul',
+    scenes: ['Arriving in Seoul', 'At a Korean Restaurant', 'Getting Around Seoul'],
+    vocab: [
+      { korean: 'an-nyeong-ha-se-yo', english: 'Hello', romanization: 'an-nyeong-ha-se-yo' },
+      { korean: 'gam-sa-ham-ni-da', english: 'Thank you', romanization: 'gam-sa-ham-ni-da' },
+      { korean: 'sil-lye-ham-ni-da', english: 'Excuse me', romanization: 'sil-lye-ham-ni-da' },
+      { korean: 'i-hae-ga an-dwae-yo', english: "I don't understand", romanization: 'i-hae-ga an-dwae-yo' },
+      { korean: 'hwa-jang-sil-i eo-di-e-yo', english: 'Where is the bathroom?', romanization: 'hwa-jang-sil-i eo-di-e-yo' },
+      { korean: 'eol-ma-ye-yo', english: 'How much is it?', romanization: 'eol-ma-ye-yo' },
+    ],
+  },
+  {
+    id: 'arc2', title: 'Daily Seoul Life', emoji: '🏙️', color: '#38bdf8', unlockAt: 6,
+    desc: 'Cafés, shops, convenience stores',
+    scenes: ['Shopping at Myeongdong', 'At a Korean Café', 'At a Convenience Store'],
+    vocab: [
+      { korean: 'ju-se-yo', english: 'Please give me', romanization: 'ju-se-yo' },
+      { korean: 'ma-si-sseo-yo', english: 'It is delicious!', romanization: 'ma-si-sseo-yo' },
+      { korean: 'neo-mu bi-ssa-yo', english: 'Too expensive', romanization: 'neo-mu bi-ssa-yo' },
+      { korean: 'da-reun saek i-sseo-yo', english: 'Do you have another color?', romanization: 'da-reun saek i-sseo-yo' },
+      { korean: 'a-i-seu a-me-ri-ka-no', english: 'Iced americano', romanization: 'a-i-seu a-me-ri-ka-no' },
+      { korean: 'bong-tu ju-se-yo', english: 'A bag please', romanization: 'bong-tu ju-se-yo' },
+    ],
+  },
+  {
+    id: 'arc3', title: 'K-Drama Essentials', emoji: '📺', color: '#fb923c', unlockAt: 12,
+    desc: 'Real phrases from real dramas',
+    scenes: ['Made in Korea — Police Station', 'The Doctors — Old Friends Reunite'],
+    vocab: [
+      { korean: 'wae-yo', english: 'Why?', romanization: 'wae-yo' },
+      { korean: 'a-ra-yo', english: 'Do you know?', romanization: 'a-ra-yo' },
+      { korean: 'jam-kkan-man-yo', english: 'Just a moment', romanization: 'jam-kkan-man-yo' },
+      { korean: 'hwa-nat-sseo-yo', english: 'I am angry', romanization: 'hwa-nat-sseo-yo' },
+      { korean: 'an-dwae-yo', english: 'Not okay / Cannot', romanization: 'an-dwae-yo' },
+      { korean: 'i-je-ya wa-sseo-yo', english: 'You came only now', romanization: 'i-je-ya wa-sseo-yo' },
+    ],
+  },
+  {
+    id: 'arc4', title: 'Romance & Feelings', emoji: '💕', color: '#f472b6', unlockAt: 18,
+    desc: 'Emotions, confessions, K-drama hearts',
+    scenes: ['Hwarang — Unexpected Confession', 'Crash Landing on You'],
+    vocab: [
+      { korean: 'jo-a-hae-yo', english: 'I like you', romanization: 'jo-a-hae-yo' },
+      { korean: 'bo-go si-peo-yo', english: 'I miss you', romanization: 'bo-go si-peo-yo' },
+      { korean: 'sa-rang-hae-yo', english: 'I love you', romanization: 'sa-rang-hae-yo' },
+      { korean: 'meo-si-sseo-yo', english: 'You are cool', romanization: 'meo-si-sseo-yo' },
+      { korean: 'bom haet-sal ga-ta-yo', english: 'Like spring sunshine', romanization: 'bom haet-sal ga-ta-yo' },
+      { korean: 'bo-go si-peo-sseo-yo', english: 'I missed you', romanization: 'bo-go si-peo-sseo-yo' },
+    ],
+  },
+  {
+    id: 'arc5', title: 'Fluency Unlocked', emoji: '🔥', color: '#e94560', unlockAt: 24,
+    desc: 'Advanced scripts — dub every line',
+    scenes: ['Extraordinary Attorney Woo', 'Abyss — Detective Sketch Scene'],
+    vocab: [
+      { korean: 'eo-ul-lyeo-yo', english: 'It suits you', romanization: 'eo-ul-lyeo-yo' },
+      { korean: 'je-dae-ro ha-se-yo', english: 'Do it properly', romanization: 'je-dae-ro ha-se-yo' },
+      { korean: 'sang-gwan-eop-sseo-yo', english: "I don't care", romanization: 'sang-gwan-eop-sseo-yo' },
+      { korean: 'i-reo-ke saeng-gyeo-sseo-yo', english: 'Does it look like this?', romanization: 'i-reo-ke saeng-gyeo-sseo-yo' },
+      { korean: 'ja-bon-ju-ui sim-jang', english: 'Capitalist heart', romanization: 'ja-bon-ju-ui sim-jang' },
+      { korean: 'seol-myeong-eul je-dae-ro', english: 'Explain properly', romanization: 'seol-myeong-eul je-dae-ro' },
+    ],
+  },
 ];
 
-const MODES = [
-  { key:'all',      label:'🌍 Global',   color:'#e94560' },
-  { key:'story',    label:'📖 Story',    color:'#4ade80' },
-  { key:'survival', label:'💀 Survival', color:'#a78bfa' },
-  { key:'thriller', label:'🔥 Thriller', color:'#fb923c' },
-];
+const ALL_VOCAB = DRAMA_PATH.flatMap(arc => arc.vocab.map(v => ({ ...v, arcId: arc.id, arcColor: arc.color })));
 
-async function safeFetch(url, opts, timeout = 4000) {
-  const ctrl = new AbortController();
-  const id = setTimeout(() => ctrl.abort(), timeout);
-  try {
-    const res = await fetch(url, { ...opts, signal: ctrl.signal });
-    clearTimeout(id);
-    if (!res.ok) throw new Error(`${res.status}`);
-    return await res.json();
-  } catch {
-    clearTimeout(id);
-    return null;
-  }
-}
+// ─── Meaning Match Game ──────────────────────────────────────────
+function MeaningMatch({ vocab, onClose, accentColor }) {
+  const [pairs] = useState(() => {
+    const pool = [...vocab].sort(() => Math.random() - 0.5).slice(0, 6);
+    return pool;
+  });
+  const [leftSel, setLeftSel] = useState(null);
+  const [rightSel, setRightSel] = useState(null);
+  const [matched, setMatched] = useState(new Set());
+  const [wrong, setWrong] = useState(null);
+  const [score, setScore] = useState(0);
+  const [done, setDone] = useState(false);
+  const [shake, setShake] = useState(null);
 
-export default function Leaderboard() {
-  const { user } = useAuth();
-  const navigate = useNavigate();
+  const rights = useRef([...pairs].sort(() => Math.random() - 0.5));
 
-  const [mode, setMode]       = useState('all');
-  const [entries, setEntries] = useState([]);
-  const [myRank, setMyRank]   = useState(null);
-  const [myStats, setMyStats] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [isMock, setIsMock]   = useState(false);
-
-  useEffect(() => { loadBoard(); }, [mode]);
-  useEffect(() => { if (user?.id) { loadMyRank(); loadMyStats(); } }, [user?.id]);
-
-  const loadBoard = async () => {
-    setLoading(true);
-    const url = mode !== 'all'
-      ? `${API}/api/leaderboard?mode=${mode}`
-      : `${API}/api/leaderboard`;
-    const data = await safeFetch(url, { headers: hdr() });
-
-    if (data && Array.isArray(data) && data.length > 0) {
-      setEntries(data);
-      setIsMock(false);
+  useEffect(() => {
+    if (leftSel === null || rightSel === null) return;
+    const leftWord = pairs[leftSel];
+    const rightWord = rights.current[rightSel];
+    if (leftWord.korean === rightWord.korean) {
+      const next = new Set(matched);
+      next.add(leftWord.korean);
+      setMatched(next);
+      setScore(s => s + 1);
+      speakKorean(leftWord.romanization);
+      setLeftSel(null); setRightSel(null);
+      if (next.size === pairs.length) setTimeout(() => setDone(true), 600);
     } else {
-      // Backend offline or empty — show filtered mock data
-      const mock = mode === 'all' ? MOCK : MOCK.filter(e => e.gameMode === mode);
-      setEntries(mock);
-      setIsMock(true);
+      setWrong({ left: leftSel, right: rightSel });
+      setShake(rightSel);
+      setTimeout(() => { setWrong(null); setShake(null); setLeftSel(null); setRightSel(null); }, 700);
     }
-    setLoading(false);
-  };
+  }, [leftSel, rightSel]);
 
-  const loadMyRank = async () => {
-    const d = await safeFetch(`${API}/api/leaderboard/rank/${user.id}`, { headers: hdr() });
-    if (d) setMyRank(d);
-  };
-
-  const loadMyStats = async () => {
-    const d = await safeFetch(`${API}/api/game/stats/${user.id}`, { headers: hdr() });
-    if (d) setMyStats(d);
-  };
-
-  const medal = (i) => i===0?'🥇':i===1?'🥈':i===2?'🥉':`#${i+1}`;
-  const isMe  = (e) => e.userId===user?.id || e.username===user?.username;
-
-  const modeColor = MODES.find(m=>m.key===mode)?.color || '#e94560';
+  if (done) return (
+    <div style={{ textAlign: 'center', padding: '48px 24px' }}>
+      <div style={{ fontSize: '72px', marginBottom: '12px' }}>🎉</div>
+      <div style={{ fontSize: '32px', fontWeight: '900', color: accentColor, marginBottom: '8px', fontFamily: "'Syne', sans-serif" }}>Wanjyeokhaeyo!</div>
+      <div style={{ fontSize: '16px', color: '#888', marginBottom: '28px' }}>All {pairs.length} pairs matched!</div>
+      <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
+        <button onClick={onClose} style={btnStyle(accentColor)}>← Back to Journey</button>
+      </div>
+    </div>
+  );
 
   return (
-    <div style={{ minHeight:'100vh', background:'#08081a', color:'#fff', fontFamily:"'DM Sans',system-ui,sans-serif" }}>
+    <div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+        <div style={{ fontSize: '14px', fontWeight: '700', color: '#888' }}>Match Pronunciation ↔️ English</div>
+        <div style={{ fontSize: '18px', fontWeight: '900', color: accentColor, fontFamily: "'Syne', sans-serif" }}>✅ {score}/{pairs.length}</div>
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          {pairs.map((p, i) => {
+            const isMatched = matched.has(p.korean);
+            const isSel = leftSel === i;
+            const isWrong = wrong?.left === i;
+            return (
+              <button key={i} onClick={() => !isMatched && setLeftSel(isSel ? null : i)}
+                style={{
+                  padding: '14px 16px', borderRadius: '12px', border: `2px solid ${isMatched ? accentColor : isSel ? accentColor : isWrong ? '#e94560' : 'rgba(255,255,255,0.08)'}`,
+                  background: isMatched ? `${accentColor}18` : isSel ? `${accentColor}15` : isWrong ? 'rgba(233,69,96,0.1)' : 'rgba(255,255,255,0.03)',
+                  color: isMatched ? accentColor : '#fff', cursor: isMatched ? 'default' : 'pointer',
+                  fontFamily: "'Syne', sans-serif", fontSize: '15px', fontWeight: '800', textAlign: 'left',
+                  opacity: isMatched ? 0.5 : 1, transition: 'all .18s',
+                  animation: isWrong ? 'shake .35s ease' : 'none',
+                }}>
+                {isMatched ? '✅ ' : ''}{p.romanization}
+              </button>
+            );
+          })}
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          {rights.current.map((p, i) => {
+            const isMatched = matched.has(p.korean);
+            const isSel = rightSel === i;
+            const isWrong = wrong?.right === i;
+            return (
+              <button key={i} onClick={() => !isMatched && setRightSel(isSel ? null : i)}
+                style={{
+                  padding: '14px 16px', borderRadius: '12px', border: `2px solid ${isMatched ? accentColor : isSel ? accentColor : isWrong ? '#e94560' : 'rgba(255,255,255,0.08)'}`,
+                  background: isMatched ? `${accentColor}18` : isSel ? `${accentColor}15` : isWrong ? 'rgba(233,69,96,0.1)' : 'rgba(255,255,255,0.03)',
+                  color: isMatched ? accentColor : '#ccc', cursor: isMatched ? 'default' : 'pointer',
+                  fontFamily: 'inherit', fontSize: '13px', fontWeight: '600', textAlign: 'left',
+                  opacity: isMatched ? 0.5 : 1, transition: 'all .18s',
+                  animation: shake === i ? 'shake .35s ease' : 'none',
+                }}>
+                {isMatched ? '✅ ' : ''}{p.english}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Speed Quiz Game ─────────────────────────────────────────────
+function SpeedQuiz({ vocab, onClose, accentColor }) {
+  const TIME = 10;
+  const [qIdx, setQIdx] = useState(0);
+  const [score, setScore] = useState(0);
+  const [timeLeft, setTimeLeft] = useState(TIME);
+  const [chosen, setChosen] = useState(null);
+  const [done, setDone] = useState(false);
+  const [streak, setStreak] = useState(0);
+  const timerRef = useRef(null);
+
+  const questions = useRef(
+    [...vocab].sort(() => Math.random() - 0.5).slice(0, 8).map(q => {
+      const wrong = [...vocab].filter(v => v.korean !== q.korean).sort(() => Math.random() - 0.5).slice(0, 3);
+      const options = [...wrong, q].sort(() => Math.random() - 0.5);
+      return { question: q, options };
+    })
+  );
+
+  const current = questions.current[qIdx];
+
+  useEffect(() => {
+    if (done || chosen !== null) return;
+    timerRef.current = setInterval(() => {
+      setTimeLeft(t => {
+        if (t <= 1) { clearInterval(timerRef.current); handleAnswer(null); return 0; }
+        return t - 1;
+      });
+    }, 1000);
+    return () => clearInterval(timerRef.current);
+  }, [qIdx, chosen, done]);
+
+  const handleAnswer = useCallback((opt) => {
+    clearInterval(timerRef.current);
+    setChosen(opt);
+    const correct = opt?.korean === current.question.korean;
+    if (correct) { setScore(s => s + 1); setStreak(s => s + 1); speakKorean(current.question.romanization); }
+    else { setStreak(0); }
+    setTimeout(() => {
+      if (qIdx + 1 >= questions.current.length) setDone(true);
+      else { setQIdx(i => i + 1); setChosen(null); setTimeLeft(TIME); }
+    }, 1000);
+  }, [qIdx, current]);
+
+  if (done) {
+    const pct = Math.round((score / questions.current.length) * 100);
+    return (
+      <div style={{ textAlign: 'center', padding: '48px 24px' }}>
+        <div style={{ fontSize: '64px', marginBottom: '12px' }}>{pct >= 80 ? '🏆' : pct >= 50 ? '🎯' : '💪'}</div>
+        <div style={{ fontSize: '32px', fontWeight: '900', color: accentColor, marginBottom: '4px', fontFamily: "'Syne', sans-serif" }}>
+          {score}/{questions.current.length}
+        </div>
+        <div style={{ fontSize: '14px', color: '#888', marginBottom: '28px' }}>
+          {pct >= 80 ? 'Wanjyeokhaeyo! You nailed it!' : pct >= 50 ? 'Jalhaesseoyo! Keep practicing!' : 'Hwaiting! You\'re getting there!'}
+        </div>
+        <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
+          <button onClick={onClose} style={btnStyle(accentColor)}>← Back to Journey</button>
+        </div>
+      </div>
+    );
+  }
+
+  const timerPct = (timeLeft / TIME) * 100;
+  return (
+    <div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+        <div style={{ fontSize: '13px', color: '#666' }}>Question {qIdx + 1} of {questions.current.length}</div>
+        <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+          {streak >= 2 && <span style={{ fontSize: '12px', color: '#fb923c', fontWeight: '700' }}>🔥 {streak} streak!</span>}
+          <span style={{ fontSize: '16px', fontWeight: '900', color: accentColor, fontFamily: "'Syne', sans-serif" }}>⚡ {score}</span>
+        </div>
+      </div>
+      <div style={{ height: '4px', background: 'rgba(255,255,255,0.06)', borderRadius: '2px', marginBottom: '24px', overflow: 'hidden' }}>
+        <div style={{ width: `${timerPct}%`, height: '100%', borderRadius: '2px', background: timerPct > 50 ? accentColor : timerPct > 25 ? '#fb923c' : '#e94560', transition: 'width 1s linear, background .3s' }} />
+      </div>
+      <div style={{ textAlign: 'center', marginBottom: '28px' }}>
+        <div style={{ fontSize: '11px', color: '#444', fontWeight: '700', letterSpacing: '2px', marginBottom: '14px' }}>WHAT DOES THIS MEAN?</div>
+        <div style={{ fontSize: '32px', fontWeight: '900', fontFamily: "'Syne', sans-serif", color: '#fff', marginBottom: '8px', lineHeight: 1.3 }}>
+          {current.question.romanization}
+        </div>
+        <button onClick={() => speakKorean(current.question.romanization)}
+          style={{ marginTop: '10px', background: 'transparent', border: 'none', color: '#555', fontSize: '22px', cursor: 'pointer' }}>🔊</button>
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+        {current.options.map((opt, i) => {
+          const isCorrect = opt.korean === current.question.korean;
+          const isChosen = chosen?.korean === opt.korean;
+          const showResult = chosen !== null;
+          return (
+            <button key={i} onClick={() => chosen === null && handleAnswer(opt)}
+              style={{
+                padding: '16px', borderRadius: '12px', fontFamily: 'inherit', fontSize: '14px', fontWeight: '700',
+                cursor: chosen ? 'default' : 'pointer', textAlign: 'left',
+                border: `2px solid ${showResult && isCorrect ? '#4ade80' : showResult && isChosen && !isCorrect ? '#e94560' : 'rgba(255,255,255,0.08)'}`,
+                background: showResult && isCorrect ? 'rgba(74,222,128,0.15)' : showResult && isChosen && !isCorrect ? 'rgba(233,69,96,0.12)' : 'rgba(255,255,255,0.03)',
+                color: showResult && isCorrect ? '#4ade80' : showResult && isChosen && !isCorrect ? '#e94560' : '#ccc',
+                transition: 'all .2s',
+              }}>
+              {showResult && isCorrect ? '✅ ' : showResult && isChosen && !isCorrect ? '❌ ' : ''}{opt.english}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ─── Helper ──────────────────────────────────────────────────────
+const btnStyle = (color) => ({
+  padding: '12px 28px', background: `linear-gradient(135deg, ${color}, ${color}aa)`,
+  border: 'none', borderRadius: '12px', color: '#fff', fontSize: '14px',
+  fontWeight: '800', cursor: 'pointer', fontFamily: "'Syne', sans-serif",
+});
+
+// ─── Main Component ──────────────────────────────────────────────
+export default function Journey() {
+  const { user } = useAuth();
+  const { isDark } = useTheme();
+  const navigate = useNavigate();
+
+  const [learned, setLearned] = useState(0);
+  const [xp, setXp] = useState(0);
+  const [activeGame, setActiveGame] = useState(null);
+  const [selectedArc, setSelectedArc] = useState(null);
+  const [hovArc, setHovArc] = useState(null);
+  const [streakDays, setStreakDays] = useState(0);
+  const [dramasStudied, setDramasStudied] = useState(0);
+  const [scenesDone, setScenesDone] = useState(0);
+
+  // Fetch real user stats from backend on mount
+  useEffect(() => {
+    if (!user?.id) return;
+    const fetchStats = async () => {
+      try {
+        const res = await fetch(`${API}/api/game/stats/${user.id}`, { headers: hdr() });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.gamesPlayed) setScenesDone(Number(data.gamesPlayed) || 0);
+          if (data.victories) setXp(prev => prev || (Number(data.victories) * 50));
+        }
+      } catch { /* backend offline — keep defaults */ }
+    };
+    fetchStats();
+  }, [user?.id]);
+
+  const stats = [
+    { label: 'Words Learned', value: learned, icon: '📚', color: '#4ade80' },
+    { label: 'XP Earned', value: xp.toLocaleString(), icon: '⚡', color: '#f8d347' },
+    { label: 'Day Streak', value: streakDays, icon: '🔥', color: '#fb923c' },
+    { label: 'Dramas Studied', value: dramasStudied, icon: '🎬', color: '#e94560' },
+    { label: 'Scenes Done', value: scenesDone, icon: '✅', color: '#38bdf8' },
+  ];
+
+  const unlockedCount = DRAMA_PATH.filter(a => learned >= a.unlockAt).length;
+
+  return (
+    <div style={{ minHeight: '100vh', background: isDark ? '#07071a' : '#f5f5f7', color: isDark ? '#fff' : '#1a1a2e', fontFamily: "'DM Sans', system-ui, sans-serif", overflowX: 'hidden', transition: 'background 0.4s ease, color 0.4s ease' }}>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@400;500;600&display=swap');
-        @keyframes spin{to{transform:rotate(360deg)}}
-        @keyframes fadeUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
-        .entry-row:hover{background:rgba(255,255,255,0.025)!important}
-        .mode-btn:hover{opacity:.85}
+        @import url('https://fonts.googleapis.com/css2?family=Syne:wght@700;800;900&family=DM+Sans:wght@400;500;600;700&display=swap');
+        @keyframes fadeUp { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:translateY(0)} }
+        @keyframes float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-6px)} }
+        @keyframes glow  { 0%,100%{opacity:.6} 50%{opacity:1} }
+        @keyframes pulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.04)} }
+        @keyframes shake { 0%,100%{transform:translateX(0)} 25%{transform:translateX(-6px)} 75%{transform:translateX(6px)} }
+        @keyframes arcReveal { from{opacity:0;transform:translateX(-16px)} to{opacity:1;transform:translateX(0)} }
+        @keyframes orb { 0%{transform:translate(0,0) scale(1)} 50%{transform:translate(30px,-20px) scale(1.1)} 100%{transform:translate(0,0) scale(1)} }
+        .nav-link { font-size:13px; cursor:pointer; color:rgba(255,255,255,0.3); font-weight:600; transition:color .2s; padding:6px 0; }
+        .nav-link:hover { color:rgba(255,255,255,0.7); }
+        .nav-link.active { color:#e94560; }
+        .arc-card { transition:all .25s ease; }
+        .arc-card:hover { transform:translateY(-4px); }
+        .game-btn:hover { transform:scale(1.04); }
+        .game-btn:active { transform:scale(0.97); }
+        .stat-card:hover { transform:translateY(-3px); }
       `}</style>
 
-      {/* Nav */}
-      <nav style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'14px 28px', background:'rgba(8,8,26,0.97)', borderBottom:'1px solid rgba(255,255,255,0.07)', position:'sticky', top:0, zIndex:100, backdropFilter:'blur(12px)' }}>
-        <div style={{ fontSize:'19px', fontWeight:'800', color:'#e94560', cursor:'pointer', fontFamily:"'Syne',sans-serif" }} onClick={()=>navigate('/')}>🎬 CineLingo</div>
-        <div style={{ display:'flex', gap:'22px' }}>
-          {[['Learn','/learn'],['Game','/game'],['Leaderboard','/leaderboard'],['Profile','/profile']].map(([l,p])=>(
-            <span key={p} style={{ fontSize:'13px', cursor:'pointer', color:p==='/leaderboard'?'#e94560':'#666', fontWeight:p==='/leaderboard'?'700':'400' }} onClick={()=>navigate(p)}>{l}</span>
-          ))}
-        </div>
-        <span style={{ color:'#555', fontSize:'13px' }}>👋 {user?.username}</span>
-      </nav>
+      {/* ─── NAV ─── */}
+      <Navbar />
 
-      <div style={{ maxWidth:'900px', margin:'0 auto', padding:'40px 24px', animation:'fadeUp .4s ease' }}>
-
-        {/* Header */}
-        <div style={{ textAlign:'center', marginBottom:'28px' }}>
-          <div style={{ fontSize:'11px', color:'#e94560', fontWeight:'700', letterSpacing:'3px', marginBottom:'8px' }}>RANKINGS</div>
-          <h1 style={{ fontSize:'40px', fontWeight:'800', margin:'0 0 6px', fontFamily:"'Syne',sans-serif" }}>🏆 Leaderboard</h1>
-          <p style={{ color:'#444', fontSize:'14px', margin:0 }}>Top Korean voice game players worldwide</p>
-        </div>
-
-        {/* Preview banner when mock */}
-        {isMock && (
-          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', background:'rgba(248,211,71,0.06)', border:'1px solid rgba(248,211,71,0.22)', borderRadius:'12px', padding:'10px 16px', marginBottom:'20px' }}>
-            <span style={{ fontSize:'13px', color:'#f8d347' }}>
-              📡 <strong>Preview Mode</strong> — Start Spring Boot to see real scores
-            </span>
-            <button onClick={loadBoard} style={{ padding:'5px 14px', background:'rgba(248,211,71,0.12)', border:'1px solid rgba(248,211,71,0.35)', borderRadius:'8px', color:'#f8d347', cursor:'pointer', fontSize:'12px', fontWeight:'700', fontFamily:'inherit' }}>
-              🔄 Retry
-            </button>
+      {/* ─── GAME OVERLAY ─── */}
+      {activeGame && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(7,7,26,0.95)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px', backdropFilter: 'blur(20px)' }}>
+          <div style={{ width: '100%', maxWidth: '620px', background: '#0d0d28', border: `1px solid ${activeGame.arc.color}33`, borderRadius: '24px', padding: '32px', boxShadow: `0 0 80px ${activeGame.arc.color}22` }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+              <div>
+                <div style={{ fontSize: '11px', color: activeGame.arc.color, fontWeight: '700', letterSpacing: '2px', marginBottom: '4px' }}>
+                  {activeGame.type === 'match' ? '🧠 MEANING MATCH' : '⚡ SPEED QUIZ'}
+                </div>
+                <div style={{ fontSize: '18px', fontWeight: '900', fontFamily: "'Syne', sans-serif" }}>{activeGame.arc.emoji} {activeGame.arc.title}</div>
+              </div>
+              <button onClick={() => setActiveGame(null)} style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '10px', color: '#666', fontSize: '13px', fontWeight: '700', cursor: 'pointer', padding: '8px 16px', fontFamily: 'inherit' }}>✕ Close</button>
+            </div>
+            {activeGame.type === 'match'
+              ? <MeaningMatch vocab={activeGame.arc.vocab} onClose={() => setActiveGame(null)} accentColor={activeGame.arc.color} />
+              : <SpeedQuiz vocab={activeGame.arc.vocab} onClose={() => setActiveGame(null)} accentColor={activeGame.arc.color} />
+            }
           </div>
-        )}
+        </div>
+      )}
 
-        {/* My Stats */}
-        <div style={{ display:'flex', gap:'10px', justifyContent:'center', flexWrap:'wrap', marginBottom:'28px' }}>
-          {[
-            ['🏅 Your Rank',  myRank?.rank>0?`#${myRank.rank}`:'—',  '#e94560'],
-            ['⭐ Best Score', myRank?.bestScore??'—',                  '#f8d347'],
-            ['🎮 Games',      myStats?.gamesPlayed??'—',               '#38bdf8'],
-            ['📊 Win Rate',   myStats?.winRate!=null?`${Math.round(myStats.winRate)}%`:'—', '#4ade80'],
-            ['🏆 Victories',  myStats?.victories??'—',                 '#a78bfa'],
-          ].map(([label,val,color])=>(
-            <div key={label} style={{ background:'rgba(255,255,255,0.02)', border:`1px solid ${color}22`, borderRadius:'14px', padding:'14px 20px', textAlign:'center', minWidth:'90px' }}>
-              <div style={{ fontSize:'22px', fontWeight:'800', color, marginBottom:'3px', fontFamily:"'Syne',sans-serif" }}>{val}</div>
-              <div style={{ fontSize:'10px', color:'#444', textTransform:'uppercase', letterSpacing:'1px' }}>{label}</div>
+      <div style={{ maxWidth: '1060px', margin: '0 auto', padding: '40px 24px' }}>
+
+        {/* ─── HERO ─── */}
+        <div style={{ position: 'relative', marginBottom: '40px', animation: 'fadeUp .4s ease' }}>
+          <div style={{ position: 'absolute', top: '-40px', right: '-60px', width: '300px', height: '300px', borderRadius: '50%', background: 'radial-gradient(circle, rgba(233,69,96,0.08) 0%, transparent 70%)', animation: 'orb 8s ease-in-out infinite', pointerEvents: 'none' }} />
+          <div style={{ position: 'absolute', top: '20px', left: '-80px', width: '200px', height: '200px', borderRadius: '50%', background: 'radial-gradient(circle, rgba(74,222,128,0.06) 0%, transparent 70%)', animation: 'orb 12s ease-in-out infinite reverse', pointerEvents: 'none' }} />
+
+          <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: '24px', flexWrap: 'wrap', position: 'relative' }}>
+            <div>
+              <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', background: 'rgba(233,69,96,0.08)', border: '1px solid rgba(233,69,96,0.2)', borderRadius: '20px', padding: '5px 16px', marginBottom: '14px' }}>
+                <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#e94560', animation: 'glow 2s ease infinite' }} />
+                <span style={{ fontSize: '11px', fontWeight: '700', color: '#e94560', letterSpacing: '2px' }}>YOUR LEARNING JOURNEY</span>
+              </div>
+              <h1 style={{ fontSize: 'clamp(32px, 5vw, 52px)', fontWeight: '900', fontFamily: "'Syne', sans-serif", margin: '0 0 10px', letterSpacing: '-2px', lineHeight: 1 }}>
+                {user?.username || 'Learner'}'s<br />
+                <span style={{ color: '#e94560' }}>K-Drama</span> Path
+              </h1>
+              <p style={{ color: 'rgba(255,255,255,0.3)', fontSize: '15px', margin: 0, maxWidth: '420px', lineHeight: 1.6 }}>
+                Watch → Learn → Play → Repeat. Your personal roadmap from Seoul survival to fluent K-Drama.
+              </p>
+            </div>
+
+            <div style={{ background: 'linear-gradient(135deg, rgba(251,146,60,0.12), rgba(251,146,60,0.04))', border: '1px solid rgba(251,146,60,0.3)', borderRadius: '20px', padding: '20px 28px', textAlign: 'center', animation: 'pulse 3s ease infinite' }}>
+              <div style={{ fontSize: '40px', marginBottom: '4px', animation: 'float 2.5s ease infinite' }}>🔥</div>
+              <div style={{ fontSize: '36px', fontWeight: '900', fontFamily: "'Syne', sans-serif", color: '#fb923c', lineHeight: 1 }}>{streakDays}</div>
+              <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.3)', fontWeight: '700', letterSpacing: '1px', marginTop: '2px' }}>DAY STREAK</div>
+            </div>
+          </div>
+        </div>
+
+        {/* ─── STATS STRIP ─── */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '10px', marginBottom: '40px' }}>
+          {stats.map(({ label, value, icon, color }) => (
+            <div key={label} className="stat-card"
+              style={{ background: 'rgba(255,255,255,0.02)', border: `1px solid ${color}18`, borderRadius: '16px', padding: '16px 12px', textAlign: 'center', transition: 'all .2s', cursor: 'default' }}
+              onMouseEnter={e => { e.currentTarget.style.background = `${color}0d`; e.currentTarget.style.borderColor = `${color}30`; }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.02)'; e.currentTarget.style.borderColor = `${color}18`; }}>
+              <div style={{ fontSize: '22px', marginBottom: '4px' }}>{icon}</div>
+              <div style={{ fontSize: '22px', fontWeight: '900', color, fontFamily: "'Syne', sans-serif", marginBottom: '2px' }}>{value}</div>
+              <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.2)', fontWeight: '600', letterSpacing: '0.8px', textTransform: 'uppercase' }}>{label}</div>
             </div>
           ))}
         </div>
 
-        {/* Mode Tabs */}
-        <div style={{ display:'flex', gap:'8px', marginBottom:'20px', justifyContent:'center', flexWrap:'wrap' }}>
-          {MODES.map(m=>(
-            <button key={m.key} className="mode-btn" onClick={()=>setMode(m.key)} style={{ padding:'9px 20px', borderRadius:'24px', fontSize:'13px', fontWeight:'700', cursor:'pointer', fontFamily:'inherit', border:`1px solid ${mode===m.key?m.color:'rgba(255,255,255,0.08)'}`, background:mode===m.key?`${m.color}18`:'transparent', color:mode===m.key?m.color:'#555', transition:'all .2s' }}>
-              {m.label}
-            </button>
-          ))}
+        {/* ─── XP PROGRESS BAR ─── */}
+        <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '16px', padding: '20px 24px', marginBottom: '40px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+            <div style={{ fontSize: '14px', fontWeight: '700', color: '#f8d347' }}>⚡ Level Progress — Level {Math.floor(xp / 500) + 1}</div>
+            <div style={{ fontSize: '12px', color: '#555' }}>{xp} / {(Math.floor(xp / 500) + 1) * 500} XP</div>
+          </div>
+          <div style={{ height: '10px', background: 'rgba(255,255,255,0.05)', borderRadius: '5px', overflow: 'hidden' }}>
+            <div style={{ width: `${((xp % 500) / 500) * 100}%`, height: '100%', borderRadius: '5px', background: 'linear-gradient(90deg, #f8d347, #fb923c)', boxShadow: '0 0 12px rgba(248,211,71,0.5)', transition: 'width 1s ease' }} />
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '8px', fontSize: '11px', color: '#444' }}>
+            <span>Lv {Math.floor(xp / 500) + 1}</span>
+            <span>{(Math.floor(xp / 500) + 1) * 500 - xp} XP to next level</span>
+            <span>Lv {Math.floor(xp / 500) + 2}</span>
+          </div>
         </div>
 
-        {/* Table */}
-        <div style={{ background:'rgba(255,255,255,0.02)', border:'1px solid rgba(255,255,255,0.07)', borderRadius:'20px', overflow:'hidden' }}>
-          {loading ? (
-            <div style={{ padding:'80px', textAlign:'center' }}>
-              <div style={{ width:'36px', height:'36px', border:'3px solid rgba(233,69,96,0.15)', borderTop:'3px solid #e94560', borderRadius:'50%', animation:'spin 0.8s linear infinite', margin:'0 auto 14px' }}/>
-              <p style={{ color:'#444', fontSize:'13px' }}>Loading scores...</p>
-            </div>
-          ) : entries.length === 0 ? (
-            <div style={{ padding:'80px', textAlign:'center' }}>
-              <div style={{ fontSize:'56px', marginBottom:'16px' }}>🎮</div>
-              <p style={{ color:'#555', fontSize:'16px', marginBottom:'6px', fontFamily:"'Syne',sans-serif", fontWeight:'700' }}>No scores yet for this mode!</p>
-              <p style={{ color:'#333', fontSize:'13px', marginBottom:'24px' }}>Play a game in {mode} mode to appear here!</p>
-              <button onClick={()=>navigate('/game')} style={{ padding:'12px 32px', background:'linear-gradient(135deg,#e94560,#c73652)', border:'none', borderRadius:'12px', color:'#fff', fontWeight:'800', cursor:'pointer', fontSize:'14px', fontFamily:'inherit' }}>🎮 Play Now</button>
-            </div>
-          ) : (
-            <>
-              {/* Header row */}
-              <div style={{ display:'grid', gridTemplateColumns:'60px 1fr 110px 100px 80px 70px', padding:'12px 20px', background:'rgba(255,255,255,0.02)', borderBottom:'1px solid rgba(255,255,255,0.05)' }}>
-                {['Rank','Player','Score','Mode','Level','Accuracy'].map((h,i)=>(
-                  <div key={h} style={{ fontSize:'10px', color:'#333', textTransform:'uppercase', letterSpacing:'1px', fontWeight:'700', textAlign:i===1?'left':'center' }}>{h}</div>
+        {/* ─── SECTION TITLE: DRAMA PATH ─── */}
+        <div style={{ marginBottom: '24px' }}>
+          <div style={{ fontSize: '11px', color: '#e94560', fontWeight: '700', letterSpacing: '3px', marginBottom: '8px' }}>DRAMA-BASED LEARNING PATH</div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: '8px' }}>
+            <h2 style={{ fontSize: '28px', fontWeight: '900', fontFamily: "'Syne', sans-serif", margin: 0, letterSpacing: '-1px' }}>
+              🎬 Your Netflix-style Curriculum
+            </h2>
+            <div style={{ fontSize: '13px', color: '#555' }}>{unlockedCount}/{DRAMA_PATH.length} arcs unlocked</div>
+          </div>
+          <p style={{ color: '#555', fontSize: '13px', margin: '6px 0 0', lineHeight: 1.5 }}>
+            Each arc unlocks as you learn more words. Complete mini-games to earn XP and advance your path.
+          </p>
+        </div>
+
+        {/* ─── DRAMA PATH ARCS ─── */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0px', position: 'relative', marginBottom: '48px' }}>
+          <div style={{ position: 'absolute', left: '31px', top: '64px', bottom: '64px', width: '2px', background: 'linear-gradient(180deg, #4ade80, #38bdf8, #fb923c, #f472b6, #e94560)', opacity: 0.2, zIndex: 0 }} />
+
+          {DRAMA_PATH.map((arc, idx) => {
+            const isUnlocked = learned >= arc.unlockAt;
+            const isSelected = selectedArc?.id === arc.id;
+            const isHov = hovArc === arc.id;
+
+            return (
+              <div key={arc.id} style={{ animation: `arcReveal .4s ease ${idx * 0.08}s both` }}>
+                <div className="arc-card"
+                  style={{ display: 'flex', alignItems: 'center', gap: '16px', padding: '20px 24px', borderRadius: '20px', cursor: isUnlocked ? 'pointer' : 'default', position: 'relative', zIndex: 1, marginBottom: '0', transition: 'all .22s', background: isSelected ? `${arc.color}0d` : isHov && isUnlocked ? 'rgba(255,255,255,0.03)' : 'transparent', border: `1px solid ${isSelected ? arc.color + '35' : 'transparent'}` }}
+                  onClick={() => isUnlocked && setSelectedArc(isSelected ? null : arc)}
+                  onMouseEnter={() => setHovArc(arc.id)}
+                  onMouseLeave={() => setHovArc(null)}>
+
+                  <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: isUnlocked ? `linear-gradient(135deg, ${arc.color}55, ${arc.color}22)` : 'rgba(255,255,255,0.04)', border: `2px solid ${isUnlocked ? arc.color : 'rgba(255,255,255,0.1)'}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '22px', flexShrink: 0, boxShadow: isUnlocked ? `0 0 20px ${arc.color}30` : 'none', filter: isUnlocked ? 'none' : 'grayscale(1)', opacity: isUnlocked ? 1 : 0.4 }}>
+                    {isUnlocked ? arc.emoji : '🔒'}
+                  </div>
+
+                  <div style={{ flex: 1, opacity: isUnlocked ? 1 : 0.4 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '3px' }}>
+                      <span style={{ fontSize: '16px', fontWeight: '800', fontFamily: "'Syne', sans-serif", color: isUnlocked ? '#fff' : '#666' }}>{arc.title}</span>
+                      {!isUnlocked && <span style={{ fontSize: '10px', color: '#444', fontWeight: '700', background: 'rgba(255,255,255,0.03)', padding: '2px 8px', borderRadius: '6px' }}>Unlock at {arc.unlockAt} words</span>}
+                    </div>
+                    <div style={{ fontSize: '12px', color: '#555', marginBottom: '6px' }}>{arc.desc}</div>
+                    <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                      {arc.scenes.map(s => (
+                        <span key={s} style={{ fontSize: '10px', color: isUnlocked ? arc.color : '#444', background: isUnlocked ? `${arc.color}12` : 'rgba(255,255,255,0.02)', border: `1px solid ${isUnlocked ? arc.color + '30' : 'rgba(255,255,255,0.06)'}`, borderRadius: '6px', padding: '2px 8px', fontWeight: '600' }}>📺 {s}</span>
+                      ))}
+                    </div>
+                  </div>
+
+                  {isUnlocked && (
+                    <div style={{ display: 'flex', gap: '8px', flexShrink: 0 }}>
+                      <button className="game-btn" onClick={(e) => { e.stopPropagation(); setActiveGame({ type: 'match', arc }); }}
+                        style={{ padding: '8px 16px', borderRadius: '10px', border: `1px solid ${arc.color}40`, background: `${arc.color}12`, color: arc.color, fontSize: '12px', fontWeight: '800', cursor: 'pointer', fontFamily: 'inherit', transition: 'all .2s', whiteSpace: 'nowrap' }}>
+                        🧠 Match
+                      </button>
+                      <button className="game-btn" onClick={(e) => { e.stopPropagation(); setActiveGame({ type: 'speed', arc }); }}
+                        style={{ padding: '8px 16px', borderRadius: '10px', border: `1px solid ${arc.color}40`, background: `${arc.color}12`, color: arc.color, fontSize: '12px', fontWeight: '800', cursor: 'pointer', fontFamily: 'inherit', transition: 'all .2s', whiteSpace: 'nowrap' }}>
+                        ⚡ Speed
+                      </button>
+                      <div style={{ fontSize: '18px', color: '#333', lineHeight: '34px', marginLeft: '4px' }}>{isSelected ? '▲' : '▼'}</div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Arc Expanded Vocab */}
+                {isSelected && isUnlocked && (
+                  <div style={{ margin: '4px 24px 16px 88px', background: `${arc.color}08`, border: `1px solid ${arc.color}20`, borderRadius: '16px', padding: '20px', animation: 'fadeUp .25s ease' }}>
+                    <div style={{ fontSize: '11px', color: arc.color, fontWeight: '700', letterSpacing: '1.5px', marginBottom: '14px' }}>KEY VOCABULARY — CLICK TO HEAR</div>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '8px', marginBottom: '16px' }}>
+                      {arc.vocab.map((v, i) => (
+                        <div key={i} onClick={() => speakKorean(v.romanization)}
+                          style={{ background: 'rgba(255,255,255,0.04)', border: `1px solid ${arc.color}20`, borderRadius: '12px', padding: '12px 14px', cursor: 'pointer', transition: 'all .18s' }}
+                          onMouseEnter={e => e.currentTarget.style.background = `${arc.color}12`}
+                          onMouseLeave={e => e.currentTarget.style.background = 'rgba(255,255,255,0.04)'}>
+                          {/* Romanization as the primary display — big and prominent */}
+                          <div style={{ fontSize: '15px', fontWeight: '900', fontFamily: "'Syne', sans-serif", color: arc.color, marginBottom: '4px' }}>
+                            {v.romanization} 🔊
+                          </div>
+                          {/* English meaning below */}
+                          <div style={{ fontSize: '12px', color: '#aaa', fontWeight: '600' }}>{v.english}</div>
+                        </div>
+                      ))}
+                    </div>
+                    <div style={{ display: 'flex', gap: '10px' }}>
+                      <button className="game-btn" onClick={() => setActiveGame({ type: 'match', arc })}
+                        style={{ flex: 1, padding: '11px', borderRadius: '12px', border: `1px solid ${arc.color}40`, background: `${arc.color}15`, color: arc.color, fontSize: '13px', fontWeight: '800', cursor: 'pointer', fontFamily: 'inherit', transition: 'all .2s' }}>
+                        🧠 Meaning Match — All 6 words
+                      </button>
+                      <button className="game-btn" onClick={() => setActiveGame({ type: 'speed', arc })}
+                        style={{ flex: 1, padding: '11px', borderRadius: '12px', border: `1px solid ${arc.color}40`, background: `${arc.color}15`, color: arc.color, fontSize: '13px', fontWeight: '800', cursor: 'pointer', fontFamily: 'inherit', transition: 'all .2s' }}>
+                        ⚡ Speed Quiz — 8 questions
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {idx < DRAMA_PATH.length - 1 && (
+                  <div style={{ display: 'flex', justifyContent: 'flex-start', paddingLeft: '43px', height: '28px', alignItems: 'center', position: 'relative', zIndex: 1 }}>
+                    <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: learned >= DRAMA_PATH[idx + 1].unlockAt ? DRAMA_PATH[idx + 1].color : '#222', boxShadow: learned >= DRAMA_PATH[idx + 1].unlockAt ? `0 0 8px ${DRAMA_PATH[idx + 1].color}` : 'none' }} />
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+
+        {/* ─── QUICK GAMES SECTION ─── */}
+        <div style={{ marginBottom: '48px' }}>
+          <div style={{ fontSize: '11px', color: '#38bdf8', fontWeight: '700', letterSpacing: '3px', marginBottom: '8px' }}>QUICK PLAY</div>
+          <h2 style={{ fontSize: '24px', fontWeight: '900', fontFamily: "'Syne', sans-serif", margin: '0 0 6px', letterSpacing: '-0.5px' }}>🎮 Mini-Games — All Vocab</h2>
+          <p style={{ color: '#555', fontSize: '13px', margin: '0 0 20px' }}>Play across all unlocked arcs — randomized every time.</p>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+            <div style={{ background: 'rgba(56,189,248,0.04)', border: '1px solid rgba(56,189,248,0.2)', borderRadius: '20px', padding: '28px', position: 'relative', overflow: 'hidden' }}>
+              <div style={{ position: 'absolute', top: '-20px', right: '-20px', fontSize: '80px', opacity: 0.06, pointerEvents: 'none' }}>🧠</div>
+              <div style={{ fontSize: '36px', marginBottom: '10px' }}>🧠</div>
+              <div style={{ fontSize: '20px', fontWeight: '900', fontFamily: "'Syne', sans-serif", marginBottom: '6px' }}>Meaning Match</div>
+              <div style={{ fontSize: '13px', color: '#555', marginBottom: '8px', lineHeight: 1.5 }}>Pronunciation ↔️ English tile matching. Race through all unlocked vocabulary.</div>
+              <div style={{ display: 'flex', gap: '6px', marginBottom: '18px', flexWrap: 'wrap' }}>
+                {['No timer', '6 pairs', 'All arcs'].map(tag => (
+                  <span key={tag} style={{ fontSize: '10px', color: '#38bdf8', background: 'rgba(56,189,248,0.08)', border: '1px solid rgba(56,189,248,0.2)', padding: '2px 8px', borderRadius: '6px', fontWeight: '700' }}>{tag}</span>
                 ))}
               </div>
+              <button className="game-btn" onClick={() => setActiveGame({ type: 'match', arc: { ...DRAMA_PATH[0], vocab: ALL_VOCAB.sort(() => Math.random() - 0.5).slice(0, 6), color: '#38bdf8', emoji: '🧠', title: 'Mixed Vocab' } })}
+                style={{ width: '100%', padding: '13px', background: 'linear-gradient(135deg, #38bdf8, #0ea5e9)', border: 'none', borderRadius: '12px', color: '#fff', fontSize: '14px', fontWeight: '900', cursor: 'pointer', fontFamily: "'Syne', sans-serif", transition: 'all .2s' }}>
+                Play Meaning Match →
+              </button>
+            </div>
 
-              {/* Entries */}
-              {entries.slice(0,50).map((entry,i)=>(
-                <div key={entry.userId||i} className="entry-row"
-                  style={{ display:'grid', gridTemplateColumns:'60px 1fr 110px 100px 80px 70px', alignItems:'center', padding:'14px 20px', borderBottom:'1px solid rgba(255,255,255,0.04)', background:isMe(entry)?'rgba(233,69,96,0.06)':'transparent', transition:'background .2s' }}>
-
-                  {/* Rank */}
-                  <div style={{ textAlign:'center', fontSize:i<3?'22px':'14px', fontWeight:'800', color:i===0?'#ffd700':i===1?'#c0c0c0':i===2?'#cd7f32':'#333', fontFamily:"'Syne',sans-serif" }}>
-                    {medal(i)}
-                  </div>
-
-                  {/* Player */}
-                  <div style={{ display:'flex', alignItems:'center', gap:'10px' }}>
-                    <div style={{ width:'36px', height:'36px', borderRadius:'50%', background:isMe(entry)?'linear-gradient(135deg,#e94560,#c73652)':'rgba(255,255,255,0.07)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'15px', fontWeight:'800', flexShrink:0, fontFamily:"'Syne',sans-serif" }}>
-                      {(entry.username||'P')[0].toUpperCase()}
-                    </div>
-                    <div>
-                      <div style={{ fontSize:'14px', fontWeight:'700', color:isMe(entry)?'#e94560':'#ccc' }}>{entry.username||'Player'}</div>
-                      {isMe(entry)&&<div style={{ fontSize:'9px', color:'#e94560', fontWeight:'800', letterSpacing:'1px' }}>YOU</div>}
-                    </div>
-                  </div>
-
-                  {/* Score */}
-                  <div style={{ textAlign:'center', fontSize:'18px', fontWeight:'800', color:i===0?'#ffd700':i===1?'#c0c0c0':i===2?'#cd7f32':'#fff', fontFamily:"'Syne',sans-serif" }}>
-                    {(entry.totalScore||0).toLocaleString()}
-                  </div>
-
-                  {/* Mode */}
-                  <div style={{ textAlign:'center' }}>
-                    <span style={{ fontSize:'11px', padding:'3px 10px', borderRadius:'8px', fontWeight:'700',
-                      background: entry.gameMode==='story'?'rgba(74,222,128,0.1)': entry.gameMode==='thriller'?'rgba(251,146,60,0.1)': entry.gameMode==='survival'?'rgba(167,139,250,0.1)':'rgba(255,255,255,0.05)',
-                      color: entry.gameMode==='story'?'#4ade80': entry.gameMode==='thriller'?'#fb923c': entry.gameMode==='survival'?'#a78bfa':'#666' }}>
-                      {entry.gameMode||'story'}
-                    </span>
-                  </div>
-
-                  {/* Level */}
-                  <div style={{ textAlign:'center' }}>
-                    <span style={{ fontSize:'12px', padding:'3px 10px', borderRadius:'8px', background:'rgba(233,69,96,0.1)', color:'#e94560', fontWeight:'700' }}>
-                      Lv {entry.level||1}
-                    </span>
-                  </div>
-
-                  {/* Accuracy */}
-                  <div style={{ textAlign:'center' }}>
-                    {entry.accuracyRate!=null?(
-                      <div>
-                        <div style={{ height:'4px', background:'rgba(255,255,255,0.05)', borderRadius:'2px', overflow:'hidden', marginBottom:'3px' }}>
-                          <div style={{ width:`${Math.round((entry.accuracyRate||0)*100)}%`, height:'100%', borderRadius:'2px', background:(entry.accuracyRate||0)>=0.8?'#4ade80':(entry.accuracyRate||0)>=0.6?'#fb923c':'#f87171' }}/>
-                        </div>
-                        <span style={{ fontSize:'11px', color:'#555' }}>{Math.round((entry.accuracyRate||0)*100)}%</span>
-                      </div>
-                    ):<span style={{ color:'#333', fontSize:'13px' }}>—</span>}
-                  </div>
-                </div>
-              ))}
-            </>
-          )}
+            <div style={{ background: 'rgba(233,69,96,0.04)', border: '1px solid rgba(233,69,96,0.2)', borderRadius: '20px', padding: '28px', position: 'relative', overflow: 'hidden' }}>
+              <div style={{ position: 'absolute', top: '-20px', right: '-20px', fontSize: '80px', opacity: 0.06, pointerEvents: 'none' }}>⚡</div>
+              <div style={{ fontSize: '36px', marginBottom: '10px' }}>⚡</div>
+              <div style={{ fontSize: '20px', fontWeight: '900', fontFamily: "'Syne', sans-serif", marginBottom: '6px' }}>Speed Quiz</div>
+              <div style={{ fontSize: '13px', color: '#555', marginBottom: '8px', lineHeight: 1.5 }}>Timed multiple-choice from real drama scenes. 10 seconds per question.</div>
+              <div style={{ display: 'flex', gap: '6px', marginBottom: '18px', flexWrap: 'wrap' }}>
+                {['10s timer', '8 questions', 'Streak bonus'].map(tag => (
+                  <span key={tag} style={{ fontSize: '10px', color: '#e94560', background: 'rgba(233,69,96,0.08)', border: '1px solid rgba(233,69,96,0.2)', padding: '2px 8px', borderRadius: '6px', fontWeight: '700' }}>{tag}</span>
+                ))}
+              </div>
+              <button className="game-btn" onClick={() => setActiveGame({ type: 'speed', arc: { ...DRAMA_PATH[0], vocab: ALL_VOCAB, color: '#e94560', emoji: '⚡', title: 'Mixed Vocab' } })}
+                style={{ width: '100%', padding: '13px', background: 'linear-gradient(135deg, #e94560, #b91c3c)', border: 'none', borderRadius: '12px', color: '#fff', fontSize: '14px', fontWeight: '900', cursor: 'pointer', fontFamily: "'Syne', sans-serif", transition: 'all .2s' }}>
+                Play Speed Quiz →
+              </button>
+            </div>
+          </div>
         </div>
 
-        {/* CTA */}
-        <div style={{ textAlign:'center', marginTop:'28px' }}>
-          <button onClick={()=>navigate('/game')} style={{ padding:'14px 40px', background:'linear-gradient(135deg,#e94560,#c73652)', border:'none', borderRadius:'14px', color:'#fff', fontSize:'16px', fontWeight:'800', cursor:'pointer', boxShadow:'0 4px 28px rgba(233,69,96,0.3)', fontFamily:'inherit' }}>
-            🎮 Play & Climb the Ranks
-          </button>
+        {/* ─── CTA ─── */}
+        <div style={{ textAlign: 'center', background: 'linear-gradient(135deg, rgba(233,69,96,0.07), rgba(56,189,248,0.04))', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '24px', padding: '44px', position: 'relative', overflow: 'hidden' }}>
+          <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(ellipse at 50% 0%, rgba(233,69,96,0.08) 0%, transparent 60%)', pointerEvents: 'none' }} />
+          <div style={{ fontSize: '44px', marginBottom: '12px', animation: 'float 3s ease infinite' }}>🎬</div>
+          <h2 style={{ fontSize: '28px', fontWeight: '900', fontFamily: "'Syne', sans-serif", margin: '0 0 10px', letterSpacing: '-1px' }}>
+            Ready to speak Korean?
+          </h2>
+          <p style={{ color: 'rgba(255,255,255,0.3)', fontSize: '14px', margin: '0 0 28px', lineHeight: 1.6 }}>
+            Use everything you've learned in the voice game.<br />Speak Korean → control your character → climb the ranks.
+          </p>
+          <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap' }}>
+            <button onClick={() => navigate('/learn')}
+              style={{ padding: '14px 36px', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '14px', color: '#fff', fontSize: '15px', fontWeight: '800', cursor: 'pointer', fontFamily: "'Syne', sans-serif", transition: 'all .25s' }}
+              onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.1)'}
+              onMouseLeave={e => e.currentTarget.style.background = 'rgba(255,255,255,0.06)'}>
+              📚 Continue Learning
+            </button>
+            <button onClick={() => navigate('/game')}
+              style={{ padding: '14px 44px', background: 'linear-gradient(135deg, #e94560, #b91c3c)', border: 'none', borderRadius: '14px', color: '#fff', fontSize: '15px', fontWeight: '900', cursor: 'pointer', fontFamily: "'Syne', sans-serif", boxShadow: '0 8px 32px rgba(233,69,96,0.4)', transition: 'all .25s' }}
+              onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 12px 40px rgba(233,69,96,0.55)'; }}
+              onMouseLeave={e => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = '0 8px 32px rgba(233,69,96,0.4)'; }}>
+              🎮 Play Voice Game →
+            </button>
+          </div>
         </div>
+
       </div>
     </div>
   );

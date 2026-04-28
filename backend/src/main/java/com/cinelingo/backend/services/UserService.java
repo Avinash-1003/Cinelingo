@@ -47,9 +47,9 @@ public class UserService {
     }
 
     // Login
-    public User login(String email, String password) {
+    public User login(String username, String password) {
 
-        User user = userRepository.findByEmail(email)
+        User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new RuntimeException("User not found!"));
 
         if (!passwordEncoder.matches(password, user.getPasswordHash())) {

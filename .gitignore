@@ -1,0 +1,6 @@
+venv/
+*.backup
+*.zip
+.DS_Store
+__pycache__/
+ai-service/venv/

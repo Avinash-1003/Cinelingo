@@ -49,7 +49,7 @@ public class UserController {
     public ResponseEntity<?> login(@RequestBody Map<String, String> request) {
         try {
             User user = userService.login(
-                    request.get("email"),
+                    request.get("username"),
                     request.get("password")
             );
 
