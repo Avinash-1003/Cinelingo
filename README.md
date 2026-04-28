@@ -23,14 +23,12 @@ CineLingo is a language learning platform that uses movies and AI to improve voc
 ---
 
 ## ⚙️ Project Structure
-
-```
 CineLingo/
 │
-├── frontend/        # React app
-├── backend/         # Spring Boot API
-├── ai-service/      # FastAPI AI services
-```
+├── frontend/ # React app
+├── backend/ # Spring Boot API
+├── ai-service/ # FastAPI AI services
+
 
 ---
 
@@ -38,19 +36,15 @@ CineLingo/
 
 ### 1️⃣ Start MongoDB
 
-```
 mongod
-```
 
 ---
 
 ### 2️⃣ Run Frontend (React)
 
-```
 cd frontend
 npm install
 npm start
-```
 
 ➡️ Runs on: http://localhost:3000
 
@@ -67,11 +61,9 @@ npm start
 
 ### 4️⃣ Run AI Service (FastAPI)
 
-```
 cd ai-service
 pip install -r requirements.txt
 uvicorn main:app --reload --port 8000
-```
 
 ➡️ Runs on: http://localhost:8000
 
@@ -103,10 +95,6 @@ uvicorn main:app --reload --port 8000
 * 🎬 Integration with real streaming APIs
 
 ---
-
-## 👩‍💻 Author
-
-**Samhitha Saraswatula**
 
 ---
 
