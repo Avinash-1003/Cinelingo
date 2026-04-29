@@ -110,4 +110,19 @@ public class UserController {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }
     }
+
+    // ── Update streak (called after playing a game) ──────────────────────────
+    @PutMapping("/{userId}/streak")
+    public ResponseEntity<?> updateStreak(@PathVariable String userId) {
+        try {
+            User user = userService.updateStreak(userId);
+            return ResponseEntity.ok(Map.of(
+                    "currentStreak", user.getStreak().getCurrent(),
+                    "longestStreak", user.getStreak().getLongest(),
+                    "lastStudied", user.getStreak().getLastStudied()
+            ));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
 }

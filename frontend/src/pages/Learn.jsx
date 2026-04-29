@@ -25,6 +25,19 @@ function fuzzyMatch(spoken, target) {
     return m / Math.max(sW.length, tW.length) > 0.5;
 }
 
+const LEARN_STORAGE_KEY = 'cinelingo_learned_lines';
+
+function loadLearnedFromStorage() {
+    try {
+        const s = localStorage.getItem(LEARN_STORAGE_KEY);
+        return s ? new Set(JSON.parse(s)) : new Set();
+    } catch { return new Set(); }
+}
+
+function saveLearnedToStorage(learnedSet) {
+    localStorage.setItem(LEARN_STORAGE_KEY, JSON.stringify([...learnedSet]));
+}
+
 async function saveLearnedWord(userId, wordKey, korean, english, level) {
     try {
         await fetch(`${API}/api/learn/mark-learned`, {
@@ -439,7 +452,7 @@ export default function Learn() {
     const [selected, setSelected] = useState(null);
     const [mode, setMode] = useState('script');
     const [expandedLine, setExpanded] = useState(null);
-    const [learned, setLearned] = useState(new Set());
+    const [learned, setLearned] = useState(() => loadLearnedFromStorage());
     const [search, setSearch] = useState('');
     const [speaking, setSpeaking] = useState(null);
 
@@ -458,8 +471,15 @@ export default function Learn() {
 
     useEffect(() => {
         if (!user?.id) return;
+        // Merge API data with localStorage
         fetchLearnedWords(user.id).then(keys => {
-            if (keys.length) setLearned(new Set(keys));
+            if (keys.length) {
+                setLearned(prev => {
+                    const merged = new Set([...prev, ...keys]);
+                    saveLearnedToStorage(merged);
+                    return merged;
+                });
+            }
         });
     }, [user?.id]);
 
@@ -484,6 +504,7 @@ export default function Learn() {
             if (prev.has(lineKey)) return prev;
             const next = new Set(prev);
             next.add(lineKey);
+            saveLearnedToStorage(next);
             if (user?.id) {
                 saveLearnedWord(user.id, lineKey, line.korean, line.english, sceneLevel);
             }

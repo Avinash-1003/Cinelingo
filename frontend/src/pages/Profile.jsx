@@ -82,17 +82,45 @@ export default function Profile() {
       fetch(`${API}/api/users/${user.id}/streak`, { headers: hdr() }).then(r => r.ok ? r.json() : {}).catch(() => ({})),
       fetch(`${API}/api/recommendations/progress/${user.id}`, { headers: hdr() }).then(r => r.ok ? r.json() : {}).catch(() => ({})),
     ]).then(([gs, sk, pr]) => {
+      // Also read localStorage for game stats (voice game) and journey stats (mini-games)
+      let localGame = {};
+      let localJourney = {};
+      try { localGame = JSON.parse(localStorage.getItem('cinelingo_player_stats') || '{}'); } catch {}
+      try { localJourney = JSON.parse(localStorage.getItem('cinelingo_journey_stats') || '{}'); } catch {}
+
+      const backendXp = pr.totalXp || 0;
+      const voiceGameXp = localGame.totalXP || 0;
+      const journeyXp = localJourney.xp || 0;
+      // backend progress already contains journey XP, so take max of backend vs local journey
+      // then add voice game XP (which is tracked independently)
+      const totalXp = Math.max(backendXp, journeyXp) + voiceGameXp;
+
+      const backendGames = gs.gamesPlayed || 0;
+      const localGames = localGame.gamesPlayed || 0;
+      const totalGames = Math.max(backendGames, localGames) + (localJourney.scenesDone || 0);
+
+      const backendVictories = gs.victories || 0;
+      const localMissions = (localGame.completedMissions || []).length;
+      const totalVictories = Math.max(backendVictories, localMissions);
+
+      const backendStreak = sk.currentStreak || 0;
+      const localStreak = user?.streak?.current || 0;
+      const journeyStreak = localJourney.streakDays || 0;
+      const totalStreak = Math.max(backendStreak, localStreak, journeyStreak);
+
+      const totalWordsLearned = Math.max(pr.totalWordsLearned || 0, localJourney.learned || 0, (localGame.uniqueCommands || []).length);
+
       setD({
-        gamesPlayed: gs.gamesPlayed || 0,
-        victories: gs.victories || 0,
-        winRate: gs.winRate || 0,
-        currentStreak: sk.currentStreak || user?.streak?.current || 0,
-        longestStreak: sk.longestStreak || user?.streak?.longest || 0,
-        totalXp: pr.totalXp || 0,
-        currentLevel: pr.currentLevel || user?.proficiencyLevel || 'beginner',
-        totalWordsLearned: pr.totalWordsLearned || 0,
-        totalWordsPracticed: pr.totalWordsPracticed || 0,
-        pronunciationAttempts: pr.totalPronunciationAttempts || 0,
+        gamesPlayed: totalGames,
+        victories: totalVictories,
+        winRate: totalGames > 0 ? Math.round((totalVictories / totalGames) * 100) : (gs.winRate || 0),
+        currentStreak: totalStreak,
+        longestStreak: Math.max(sk.longestStreak || 0, totalStreak),
+        totalXp: totalXp,
+        currentLevel: totalXp >= 1000 ? 'advanced' : totalXp >= 300 ? 'intermediate' : (pr.currentLevel || user?.proficiencyLevel || 'beginner'),
+        totalWordsLearned: totalWordsLearned,
+        totalWordsPracticed: Math.max(pr.totalWordsPracticed || 0, totalWordsLearned),
+        pronunciationAttempts: Math.max(pr.totalPronunciationAttempts || 0, totalGames),
         bestScore: pr.bestPronunciationScore || 0,
         avgScore: pr.averagePronunciationScore || 0,
         masteredWords: pr.masteredWordIds?.length || 0,

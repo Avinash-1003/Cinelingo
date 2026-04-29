@@ -87,7 +87,7 @@ const DRAMA_PATH = [
 const ALL_VOCAB = DRAMA_PATH.flatMap(arc => arc.vocab.map(v => ({ ...v, arcId: arc.id, arcColor: arc.color })));
 
 // ─── Meaning Match Game ──────────────────────────────────────────
-function MeaningMatch({ vocab, onClose, accentColor }) {
+function MeaningMatch({ vocab, onClose, accentColor, onComplete }) {
   const [pairs] = useState(() => {
     const pool = [...vocab].sort(() => Math.random() - 0.5).slice(0, 6);
     return pool;
@@ -113,7 +113,7 @@ function MeaningMatch({ vocab, onClose, accentColor }) {
       setScore(s => s + 1);
       speakKorean(leftWord.romanization);
       setLeftSel(null); setRightSel(null);
-      if (next.size === pairs.length) setTimeout(() => setDone(true), 600);
+      if (next.size === pairs.length) setTimeout(() => { setDone(true); if (onComplete) onComplete(next.size); }, 600);
     } else {
       setWrong({ left: leftSel, right: rightSel });
       setShake(rightSel);
@@ -185,7 +185,7 @@ function MeaningMatch({ vocab, onClose, accentColor }) {
 }
 
 // ─── Speed Quiz Game ─────────────────────────────────────────────
-function SpeedQuiz({ vocab, onClose, accentColor }) {
+function SpeedQuiz({ vocab, onClose, accentColor, onComplete }) {
   const TIME = 10;
   const [qIdx, setQIdx] = useState(0);
   const [score, setScore] = useState(0);
@@ -223,7 +223,7 @@ function SpeedQuiz({ vocab, onClose, accentColor }) {
     if (correct) { setScore(s => s + 1); setStreak(s => s + 1); speakKorean(current.question.romanization); }
     else { setStreak(0); }
     setTimeout(() => {
-      if (qIdx + 1 >= questions.current.length) setDone(true);
+      if (qIdx + 1 >= questions.current.length) { setDone(true); if (onComplete) onComplete(score + (correct ? 1 : 0)); }
       else { setQIdx(i => i + 1); setChosen(null); setTimeLeft(TIME); }
     }, 1000);
   }, [qIdx, current]);
@@ -299,35 +299,108 @@ const btnStyle = (color) => ({
 });
 
 // ─── Main Component ──────────────────────────────────────────────
+// ─── Persistence helpers ─────────────────────────────────────────
+const JOURNEY_KEY = 'cinelingo_journey_stats';
+
+function loadJourneyStats() {
+  try {
+    const s = localStorage.getItem(JOURNEY_KEY);
+    return s ? JSON.parse(s) : null;
+  } catch { return null; }
+}
+
+function saveJourneyStats(stats) {
+  localStorage.setItem(JOURNEY_KEY, JSON.stringify(stats));
+}
+
+async function pushProgressToBackend(userId, addXp, addWords) {
+  if (!userId || userId === 'guest') return;
+  try {
+    await fetch(`${API}/api/recommendations/progress/${userId}`, {
+      method: 'POST', headers: hdr(),
+      body: JSON.stringify({ addXp, addWordsLearned: addWords }),
+    });
+  } catch { /* silent */ }
+}
+
+async function pushStreakToBackend(userId) {
+  if (!userId || userId === 'guest') return;
+  try {
+    await fetch(`${API}/api/users/${userId}/streak`, {
+      method: 'PUT', headers: hdr(),
+    });
+  } catch { /* silent */ }
+}
+
 export default function Journey() {
   const { user } = useAuth();
   const { isDark } = useTheme();
   const navigate = useNavigate();
 
-  const [learned, setLearned] = useState(0);
-  const [xp, setXp] = useState(0);
+  // Load persisted stats from localStorage
+  const saved = loadJourneyStats() || {};
+  const [learned, setLearned] = useState(saved.learned || 0);
+  const [xp, setXp] = useState(saved.xp || 0);
   const [activeGame, setActiveGame] = useState(null);
   const [selectedArc, setSelectedArc] = useState(null);
   const [hovArc, setHovArc] = useState(null);
-  const [streakDays, setStreakDays] = useState(0);
-  const [dramasStudied, setDramasStudied] = useState(0);
-  const [scenesDone, setScenesDone] = useState(0);
+  const [streakDays, setStreakDays] = useState(saved.streakDays || 0);
+  const [dramasStudied, setDramasStudied] = useState(saved.dramasStudied || 0);
+  const [scenesDone, setScenesDone] = useState(saved.scenesDone || 0);
 
-  // Fetch real user stats from backend on mount
+  // Fetch real user stats from backend on mount and merge
   useEffect(() => {
-    if (!user?.id) return;
+    if (!user?.id || user.id === 'guest') return;
     const fetchStats = async () => {
       try {
-        const res = await fetch(`${API}/api/game/stats/${user.id}`, { headers: hdr() });
-        if (res.ok) {
-          const data = await res.json();
-          if (data.gamesPlayed) setScenesDone(Number(data.gamesPlayed) || 0);
-          if (data.victories) setXp(prev => prev || (Number(data.victories) * 50));
-        }
-      } catch { /* backend offline — keep defaults */ }
+        const [gsRes, skRes, prRes] = await Promise.all([
+          fetch(`${API}/api/game/stats/${user.id}`, { headers: hdr() }).then(r => r.ok ? r.json() : {}).catch(() => ({})),
+          fetch(`${API}/api/users/${user.id}/streak`, { headers: hdr() }).then(r => r.ok ? r.json() : {}).catch(() => ({})),
+          fetch(`${API}/api/recommendations/progress/${user.id}`, { headers: hdr() }).then(r => r.ok ? r.json() : {}).catch(() => ({})),
+        ]);
+
+        const local = loadJourneyStats() || {};
+
+        // Take the max of local vs backend for each stat
+        const backendXp = (prRes.totalXp || 0) + (gsRes.victories || 0) * 50;
+        const mergedXp = Math.max(local.xp || 0, backendXp);
+        const mergedLearned = Math.max(local.learned || 0, prRes.totalWordsLearned || 0);
+        const mergedStreak = Math.max(local.streakDays || 0, skRes.currentStreak || 0);
+        const mergedScenes = Math.max(local.scenesDone || 0, Number(gsRes.gamesPlayed) || 0);
+
+        setXp(mergedXp);
+        setLearned(mergedLearned);
+        setStreakDays(mergedStreak);
+        setScenesDone(mergedScenes);
+
+        saveJourneyStats({ ...local, xp: mergedXp, learned: mergedLearned, streakDays: mergedStreak, scenesDone: mergedScenes });
+      } catch { /* backend offline — keep localStorage values */ }
     };
     fetchStats();
   }, [user?.id]);
+
+  // Game completion handler — persists progress
+  const handleGameComplete = useCallback((wordsCorrect, gameType) => {
+    const earnedXp = gameType === 'match' ? wordsCorrect * 25 : wordsCorrect * 30;
+    const newXp = xp + earnedXp;
+    const newLearned = learned + wordsCorrect;
+    const newScenes = scenesDone + 1;
+    const newDramas = Math.min(dramasStudied + 1, DRAMA_PATH.length);
+
+    setXp(newXp);
+    setLearned(newLearned);
+    setScenesDone(newScenes);
+    setDramasStudied(newDramas);
+
+    const updated = { learned: newLearned, xp: newXp, streakDays, scenesDone: newScenes, dramasStudied: newDramas };
+    saveJourneyStats(updated);
+
+    // Push to backend
+    if (user?.id) {
+      pushProgressToBackend(user.id, earnedXp, wordsCorrect);
+      pushStreakToBackend(user.id);
+    }
+  }, [xp, learned, scenesDone, dramasStudied, streakDays, user?.id]);
 
   const stats = [
     { label: 'Words Learned', value: learned, icon: '📚', color: '#4ade80' },
@@ -377,8 +450,8 @@ export default function Journey() {
               <button onClick={() => setActiveGame(null)} style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '10px', color: '#666', fontSize: '13px', fontWeight: '700', cursor: 'pointer', padding: '8px 16px', fontFamily: 'inherit' }}>✕ Close</button>
             </div>
             {activeGame.type === 'match'
-              ? <MeaningMatch vocab={activeGame.arc.vocab} onClose={() => setActiveGame(null)} accentColor={activeGame.arc.color} />
-              : <SpeedQuiz vocab={activeGame.arc.vocab} onClose={() => setActiveGame(null)} accentColor={activeGame.arc.color} />
+              ? <MeaningMatch vocab={activeGame.arc.vocab} onClose={() => setActiveGame(null)} accentColor={activeGame.arc.color} onComplete={(w) => handleGameComplete(w, 'match')} />
+              : <SpeedQuiz vocab={activeGame.arc.vocab} onClose={() => setActiveGame(null)} accentColor={activeGame.arc.color} onComplete={(w) => handleGameComplete(w, 'speed')} />
             }
           </div>
         </div>

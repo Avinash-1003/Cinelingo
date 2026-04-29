@@ -55,4 +55,10 @@ public class ScoreService {
     public long getVictoryCount(String userId) {
         return scoreRepository.countByUserIdAndStatus(userId, "victory");
     }
+
+    public int getTotalXpByUser(String userId) {
+        return scoreRepository.findByUserIdOrderByPlayedAtDesc(userId).stream()
+                .mapToInt(Score::getXpEarned)
+                .sum();
+    }
 }
