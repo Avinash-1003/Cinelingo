@@ -3,17 +3,14 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import Navbar from '../components/Navbar';
+import VoicePicker from '../components/VoicePicker';
+import { speakKorean } from '../utils/voice';
 
 const API = 'http://localhost:8080';
 const tok = () => localStorage.getItem('cinelingo_token') || '';
 const hdr = () => ({ 'Content-Type': 'application/json', Authorization: `Bearer ${tok()}` });
 
-const speakKorean = (text, slow = false) => {
-    window.speechSynthesis.cancel();
-    const u = new SpeechSynthesisUtterance(text);
-    u.lang = 'ko-KR'; u.rate = slow ? 0.45 : 0.85; u.pitch = 1.1;
-    window.speechSynthesis.speak(u);
-};
+
 
 function fuzzyMatch(spoken, target) {
     const s = spoken.trim().toLowerCase().replace(/[!?.]/g, '').replace(/\s+/g, ' ');
@@ -628,8 +625,11 @@ export default function Learn() {
                         </div>
                     </div>
 
-                    <input value={search} onChange={e => setSearch(e.target.value)} placeholder={`Search ${activeLevel} scenes by title or genre...`}
-                        style={{ width: '100%', padding: '11px 16px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.09)', borderRadius: '10px', color: '#fff', fontSize: '14px', outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box', marginBottom: '20px' }} />
+                    <div style={{ display: 'flex', gap: '10px', alignItems: 'center', marginBottom: '20px' }}>
+                        <input value={search} onChange={e => setSearch(e.target.value)} placeholder={`Search ${activeLevel} scenes by title or genre...`}
+                            style={{ flex: 1, padding: '11px 16px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.09)', borderRadius: '10px', color: '#fff', fontSize: '14px', outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }} />
+                        <VoicePicker accentColor={lvlCfg.color} isDark={isDark} />
+                    </div>
 
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(300px,1fr))', gap: '16px' }}>
                         {displayScenes.map(v => {

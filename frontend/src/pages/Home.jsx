@@ -3,13 +3,10 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import Navbar from '../components/Navbar';
+import VoicePicker from '../components/VoicePicker';
+import { speakKorean } from '../utils/voice';
 
-const speakKorean = (text) => {
-  window.speechSynthesis.cancel();
-  const u = new SpeechSynthesisUtterance(text);
-  u.lang = 'ko-KR'; u.rate = 0.85; u.pitch = 1.1;
-  window.speechSynthesis.speak(u);
-};
+
 
 const GREETINGS = [
   { korean: '안녕하세요!', rom: 'An-nyeong-ha-se-yo', english: 'Hello!' },
@@ -326,6 +323,9 @@ export default function Home() {
             </button>
             <div style={{ marginTop: '16px', fontSize: '11px', color: textFaint }}>
               Rotates every 3.5 seconds · Click 🔊 to hear pronunciation
+            </div>
+            <div style={{ marginTop: '10px' }}>
+              <VoicePicker accentColor="#e94560" isDark={isDark} />
             </div>
           </div>
         </div>

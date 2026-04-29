@@ -3,17 +3,12 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import Navbar from '../components/Navbar';
+import VoicePicker from '../components/VoicePicker';
+import { speakKorean } from '../utils/voice';
 
 const API = 'http://localhost:8081';
 const tok = () => localStorage.getItem('cinelingo_token') || '';
 const hdr = () => ({ 'Content-Type': 'application/json', Authorization: `Bearer ${tok()}` });
-
-const speakKorean = (text) => {
-  window.speechSynthesis.cancel();
-  const u = new SpeechSynthesisUtterance(text);
-  u.lang = 'ko-KR'; u.rate = 0.85; u.pitch = 1.1;
-  window.speechSynthesis.speak(u);
-};
 
 // ─── Drama Learning Path ─────────────────────────────────────────
 const DRAMA_PATH = [
@@ -477,6 +472,9 @@ export default function Journey() {
               <p style={{ color: 'rgba(255,255,255,0.3)', fontSize: '15px', margin: 0, maxWidth: '420px', lineHeight: 1.6 }}>
                 Watch → Learn → Play → Repeat. Your personal roadmap from Seoul survival to fluent K-Drama.
               </p>
+              <div style={{ marginTop: '12px' }}>
+                <VoicePicker accentColor="#e94560" isDark={isDark} />
+              </div>
             </div>
 
             <div style={{ background: 'linear-gradient(135deg, rgba(251,146,60,0.12), rgba(251,146,60,0.04))', border: '1px solid rgba(251,146,60,0.3)', borderRadius: '20px', padding: '20px 28px', textAlign: 'center', animation: 'pulse 3s ease infinite' }}>

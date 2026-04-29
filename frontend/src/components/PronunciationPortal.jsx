@@ -1,13 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { speakKorean } from '../utils/voice';
 
-const speakKorean = (text, slow = false) => {
-  window.speechSynthesis.cancel();
-  const u = new SpeechSynthesisUtterance(text);
-  u.lang = 'ko-KR';
-  u.rate = slow ? 0.45 : 0.8;
-  u.pitch = 1.1;
-  window.speechSynthesis.speak(u);
-};
 
 // ── Scoring engine ─────────────────────────────────────────────────────────────
 // 1. Exact Korean match      → 100
