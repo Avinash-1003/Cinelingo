@@ -469,7 +469,7 @@ export default function Journey() {
                 {user?.username || 'Learner'}'s<br />
                 <span style={{ color: '#e94560' }}>K-Drama</span> Path
               </h1>
-              <p style={{ color: 'rgba(255,255,255,0.3)', fontSize: '15px', margin: 0, maxWidth: '420px', lineHeight: 1.6 }}>
+              <p style={{ color: isDark ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.45)', fontSize: '15px', margin: 0, maxWidth: '420px', lineHeight: 1.6 }}>
                 Watch → Learn → Play → Repeat. Your personal roadmap from Seoul survival to fluent K-Drama.
               </p>
               <div style={{ marginTop: '12px' }}>
@@ -480,7 +480,7 @@ export default function Journey() {
             <div style={{ background: 'linear-gradient(135deg, rgba(251,146,60,0.12), rgba(251,146,60,0.04))', border: '1px solid rgba(251,146,60,0.3)', borderRadius: '20px', padding: '20px 28px', textAlign: 'center', animation: 'pulse 3s ease infinite' }}>
               <div style={{ fontSize: '40px', marginBottom: '4px', animation: 'float 2.5s ease infinite' }}>🔥</div>
               <div style={{ fontSize: '36px', fontWeight: '900', fontFamily: "'Syne', sans-serif", color: '#fb923c', lineHeight: 1 }}>{streakDays}</div>
-              <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.3)', fontWeight: '700', letterSpacing: '1px', marginTop: '2px' }}>DAY STREAK</div>
+              <div style={{ fontSize: '11px', color: isDark ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.4)', fontWeight: '700', letterSpacing: '1px', marginTop: '2px' }}>DAY STREAK</div>
             </div>
           </div>
         </div>
@@ -489,23 +489,23 @@ export default function Journey() {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '10px', marginBottom: '40px' }}>
           {stats.map(({ label, value, icon, color }) => (
             <div key={label} className="stat-card"
-              style={{ background: 'rgba(255,255,255,0.02)', border: `1px solid ${color}18`, borderRadius: '16px', padding: '16px 12px', textAlign: 'center', transition: 'all .2s', cursor: 'default' }}
+              style={{ background: isDark ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)', border: `1px solid ${color}18`, borderRadius: '16px', padding: '16px 12px', textAlign: 'center', transition: 'all .2s', cursor: 'default' }}
               onMouseEnter={e => { e.currentTarget.style.background = `${color}0d`; e.currentTarget.style.borderColor = `${color}30`; }}
-              onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.02)'; e.currentTarget.style.borderColor = `${color}18`; }}>
+              onMouseLeave={e => { e.currentTarget.style.background = isDark ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)'; e.currentTarget.style.borderColor = `${color}18`; }}>
               <div style={{ fontSize: '22px', marginBottom: '4px' }}>{icon}</div>
               <div style={{ fontSize: '22px', fontWeight: '900', color, fontFamily: "'Syne', sans-serif", marginBottom: '2px' }}>{value}</div>
-              <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.2)', fontWeight: '600', letterSpacing: '0.8px', textTransform: 'uppercase' }}>{label}</div>
+              <div style={{ fontSize: '10px', color: isDark ? 'rgba(255,255,255,0.25)' : 'rgba(0,0,0,0.4)', fontWeight: '600', letterSpacing: '0.8px', textTransform: 'uppercase' }}>{label}</div>
             </div>
           ))}
         </div>
 
         {/* ─── XP PROGRESS BAR ─── */}
-        <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '16px', padding: '20px 24px', marginBottom: '40px' }}>
+        <div style={{ background: isDark ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)', border: `1px solid ${isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)'}`, borderRadius: '16px', padding: '20px 24px', marginBottom: '40px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
             <div style={{ fontSize: '14px', fontWeight: '700', color: '#f8d347' }}>⚡ Level Progress — Level {Math.floor(xp / 500) + 1}</div>
             <div style={{ fontSize: '12px', color: '#555' }}>{xp} / {(Math.floor(xp / 500) + 1) * 500} XP</div>
           </div>
-          <div style={{ height: '10px', background: 'rgba(255,255,255,0.05)', borderRadius: '5px', overflow: 'hidden' }}>
+          <div style={{ height: '10px', background: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.06)', borderRadius: '5px', overflow: 'hidden' }}>
             <div style={{ width: `${((xp % 500) / 500) * 100}%`, height: '100%', borderRadius: '5px', background: 'linear-gradient(90deg, #f8d347, #fb923c)', boxShadow: '0 0 12px rgba(248,211,71,0.5)', transition: 'width 1s ease' }} />
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '8px', fontSize: '11px', color: '#444' }}>
@@ -541,24 +541,24 @@ export default function Journey() {
             return (
               <div key={arc.id} style={{ animation: `arcReveal .4s ease ${idx * 0.08}s both` }}>
                 <div className="arc-card"
-                  style={{ display: 'flex', alignItems: 'center', gap: '16px', padding: '20px 24px', borderRadius: '20px', cursor: isUnlocked ? 'pointer' : 'default', position: 'relative', zIndex: 1, marginBottom: '0', transition: 'all .22s', background: isSelected ? `${arc.color}0d` : isHov && isUnlocked ? 'rgba(255,255,255,0.03)' : 'transparent', border: `1px solid ${isSelected ? arc.color + '35' : 'transparent'}` }}
+                  style={{ display: 'flex', alignItems: 'center', gap: '16px', padding: '20px 24px', borderRadius: '20px', cursor: isUnlocked ? 'pointer' : 'default', position: 'relative', zIndex: 1, marginBottom: '0', transition: 'all .22s', background: isSelected ? `${arc.color}0d` : isHov && isUnlocked ? (isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.03)') : 'transparent', border: `1px solid ${isSelected ? arc.color + '35' : 'transparent'}` }}
                   onClick={() => isUnlocked && setSelectedArc(isSelected ? null : arc)}
                   onMouseEnter={() => setHovArc(arc.id)}
                   onMouseLeave={() => setHovArc(null)}>
 
-                  <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: isUnlocked ? `linear-gradient(135deg, ${arc.color}55, ${arc.color}22)` : 'rgba(255,255,255,0.04)', border: `2px solid ${isUnlocked ? arc.color : 'rgba(255,255,255,0.1)'}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '22px', flexShrink: 0, boxShadow: isUnlocked ? `0 0 20px ${arc.color}30` : 'none', filter: isUnlocked ? 'none' : 'grayscale(1)', opacity: isUnlocked ? 1 : 0.4 }}>
+                  <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: isUnlocked ? `linear-gradient(135deg, ${arc.color}55, ${arc.color}22)` : (isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.04)'), border: `2px solid ${isUnlocked ? arc.color : (isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)')}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '22px', flexShrink: 0, boxShadow: isUnlocked ? `0 0 20px ${arc.color}30` : 'none', filter: isUnlocked ? 'none' : 'grayscale(1)', opacity: isUnlocked ? 1 : 0.4 }}>
                     {isUnlocked ? arc.emoji : '🔒'}
                   </div>
 
                   <div style={{ flex: 1, opacity: isUnlocked ? 1 : 0.4 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '3px' }}>
-                      <span style={{ fontSize: '16px', fontWeight: '800', fontFamily: "'Syne', sans-serif", color: isUnlocked ? '#fff' : '#666' }}>{arc.title}</span>
-                      {!isUnlocked && <span style={{ fontSize: '10px', color: '#444', fontWeight: '700', background: 'rgba(255,255,255,0.03)', padding: '2px 8px', borderRadius: '6px' }}>Unlock at {arc.unlockAt} words</span>}
+                      <span style={{ fontSize: '16px', fontWeight: '800', fontFamily: "'Syne', sans-serif", color: isUnlocked ? (isDark ? '#fff' : '#1a1a2e') : '#999' }}>{arc.title}</span>
+                      {!isUnlocked && <span style={{ fontSize: '10px', color: isDark ? '#444' : '#999', fontWeight: '700', background: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.05)', padding: '2px 8px', borderRadius: '6px' }}>Unlock at {arc.unlockAt} words</span>}
                     </div>
-                    <div style={{ fontSize: '12px', color: '#555', marginBottom: '6px' }}>{arc.desc}</div>
+                    <div style={{ fontSize: '12px', color: isDark ? '#555' : '#888', marginBottom: '6px' }}>{arc.desc}</div>
                     <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
                       {arc.scenes.map(s => (
-                        <span key={s} style={{ fontSize: '10px', color: isUnlocked ? arc.color : '#444', background: isUnlocked ? `${arc.color}12` : 'rgba(255,255,255,0.02)', border: `1px solid ${isUnlocked ? arc.color + '30' : 'rgba(255,255,255,0.06)'}`, borderRadius: '6px', padding: '2px 8px', fontWeight: '600' }}>📺 {s}</span>
+                        <span key={s} style={{ fontSize: '10px', color: isUnlocked ? arc.color : (isDark ? '#444' : '#999'), background: isUnlocked ? `${arc.color}12` : (isDark ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.03)'), border: `1px solid ${isUnlocked ? arc.color + '30' : (isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)')}`, borderRadius: '6px', padding: '2px 8px', fontWeight: '600' }}>📺 {s}</span>
                       ))}
                     </div>
                   </div>
@@ -585,15 +585,15 @@ export default function Journey() {
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '8px', marginBottom: '16px' }}>
                       {arc.vocab.map((v, i) => (
                         <div key={i} onClick={() => speakKorean(v.romanization)}
-                          style={{ background: 'rgba(255,255,255,0.04)', border: `1px solid ${arc.color}20`, borderRadius: '12px', padding: '12px 14px', cursor: 'pointer', transition: 'all .18s' }}
+                          style={{ background: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)', border: `1px solid ${arc.color}20`, borderRadius: '12px', padding: '12px 14px', cursor: 'pointer', transition: 'all .18s' }}
                           onMouseEnter={e => e.currentTarget.style.background = `${arc.color}12`}
-                          onMouseLeave={e => e.currentTarget.style.background = 'rgba(255,255,255,0.04)'}>
+                          onMouseLeave={e => e.currentTarget.style.background = isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)'}>
                           {/* Romanization as the primary display — big and prominent */}
                           <div style={{ fontSize: '15px', fontWeight: '900', fontFamily: "'Syne', sans-serif", color: arc.color, marginBottom: '4px' }}>
                             {v.romanization} 🔊
                           </div>
                           {/* English meaning below */}
-                          <div style={{ fontSize: '12px', color: '#aaa', fontWeight: '600' }}>{v.english}</div>
+                          <div style={{ fontSize: '12px', color: isDark ? '#aaa' : '#555', fontWeight: '600' }}>{v.english}</div>
                         </div>
                       ))}
                     </div>
@@ -612,7 +612,7 @@ export default function Journey() {
 
                 {idx < DRAMA_PATH.length - 1 && (
                   <div style={{ display: 'flex', justifyContent: 'flex-start', paddingLeft: '43px', height: '28px', alignItems: 'center', position: 'relative', zIndex: 1 }}>
-                    <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: learned >= DRAMA_PATH[idx + 1].unlockAt ? DRAMA_PATH[idx + 1].color : '#222', boxShadow: learned >= DRAMA_PATH[idx + 1].unlockAt ? `0 0 8px ${DRAMA_PATH[idx + 1].color}` : 'none' }} />
+                    <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: learned >= DRAMA_PATH[idx + 1].unlockAt ? DRAMA_PATH[idx + 1].color : (isDark ? '#222' : '#ccc'), boxShadow: learned >= DRAMA_PATH[idx + 1].unlockAt ? `0 0 8px ${DRAMA_PATH[idx + 1].color}` : 'none' }} />
                   </div>
                 )}
               </div>
@@ -662,20 +662,20 @@ export default function Journey() {
         </div>
 
         {/* ─── CTA ─── */}
-        <div style={{ textAlign: 'center', background: 'linear-gradient(135deg, rgba(233,69,96,0.07), rgba(56,189,248,0.04))', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '24px', padding: '44px', position: 'relative', overflow: 'hidden' }}>
+        <div style={{ textAlign: 'center', background: isDark ? 'linear-gradient(135deg, rgba(233,69,96,0.07), rgba(56,189,248,0.04))' : 'linear-gradient(135deg, rgba(233,69,96,0.06), rgba(56,189,248,0.04))', border: `1px solid ${isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.06)'}`, borderRadius: '24px', padding: '44px', position: 'relative', overflow: 'hidden' }}>
           <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(ellipse at 50% 0%, rgba(233,69,96,0.08) 0%, transparent 60%)', pointerEvents: 'none' }} />
           <div style={{ fontSize: '44px', marginBottom: '12px', animation: 'float 3s ease infinite' }}>🎬</div>
           <h2 style={{ fontSize: '28px', fontWeight: '900', fontFamily: "'Syne', sans-serif", margin: '0 0 10px', letterSpacing: '-1px' }}>
             Ready to speak Korean?
           </h2>
-          <p style={{ color: 'rgba(255,255,255,0.3)', fontSize: '14px', margin: '0 0 28px', lineHeight: 1.6 }}>
+          <p style={{ color: isDark ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.45)', fontSize: '14px', margin: '0 0 28px', lineHeight: 1.6 }}>
             Use everything you've learned in the voice game.<br />Speak Korean → control your character → climb the ranks.
           </p>
           <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap' }}>
             <button onClick={() => navigate('/learn')}
-              style={{ padding: '14px 36px', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '14px', color: '#fff', fontSize: '15px', fontWeight: '800', cursor: 'pointer', fontFamily: "'Syne', sans-serif", transition: 'all .25s' }}
-              onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.1)'}
-              onMouseLeave={e => e.currentTarget.style.background = 'rgba(255,255,255,0.06)'}>
+              style={{ padding: '14px 36px', background: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)', border: `1px solid ${isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.1)'}`, borderRadius: '14px', color: isDark ? '#fff' : '#1a1a2e', fontSize: '15px', fontWeight: '800', cursor: 'pointer', fontFamily: "'Syne', sans-serif", transition: 'all .25s' }}
+              onMouseEnter={e => e.currentTarget.style.background = isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)'}
+              onMouseLeave={e => e.currentTarget.style.background = isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)'}>
               📚 Continue Learning
             </button>
             <button onClick={() => navigate('/game')}
